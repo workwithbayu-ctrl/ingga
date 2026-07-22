@@ -27,7 +27,11 @@ class Transaction {
     // For receipt/attachment
     var receiptImageData: Data?
 
-    init(amount: Double, note: String = "", date: Date, type: TransactionType, category: Category? = nil, wallet: Wallet? = nil, user: User? = nil, allocatedPocketID: UUID? = nil, allocatedAmount: Double = 0, sourceWallet: Wallet? = nil, destinationWallet: Wallet? = nil, isTransfer: Bool = false, receiptImageData: Data? = nil) {
+    // ⭐ FAMILY SHARING FIELDS
+    var familyCode: String?
+    var firebaseUid: String?
+
+    init(amount: Double, note: String = "", date: Date, type: TransactionType, category: Category? = nil, wallet: Wallet? = nil, user: User? = nil, allocatedPocketID: UUID? = nil, allocatedAmount: Double = 0, sourceWallet: Wallet? = nil, destinationWallet: Wallet? = nil, isTransfer: Bool = false, receiptImageData: Data? = nil, familyCode: String? = nil, firebaseUid: String? = nil) {
         self.id = UUID()
         self.amount = amount
         self.note = note
@@ -42,6 +46,8 @@ class Transaction {
         self.destinationWallet = destinationWallet
         self.isTransfer = isTransfer
         self.receiptImageData = receiptImageData
+        self.familyCode = familyCode
+        self.firebaseUid = firebaseUid
         self.createdAt = Date()
     }
 

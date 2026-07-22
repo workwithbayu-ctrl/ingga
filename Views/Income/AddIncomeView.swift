@@ -1,11 +1,10 @@
 import SwiftUI
 import SwiftData
+import FirebaseAuth
 
 struct AddIncomeView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var authService = FirebaseAuthService.shared
-
     var onIncomeAdded: ((Double) -> Void)? = nil
 
     @FocusState private var isAmountFocused: Bool
@@ -23,11 +22,26 @@ struct AddIncomeView: View {
     @State private var categories: [Category] = []
     @State private var wallets: [Wallet] = []
 
+    // State untuk form kategori
+    @State private var showAddCategory: Bool = false
+    @State private var categoryToEdit: Category? = nil
+    @State private var showEditCategory: Bool = false
+    @State private var categoryToDelete: Category? = nil
+    @State private var showDeleteConfirm: Bool = false
+
+    // ⭐ FIX: sebelumnya bergantung ke `FirebaseAuthService.shared.currentUser`, yang TIDAK
+    // PERNAH terisi (listener-nya tidak pernah dijalankan di app ini) — jadi `currentUser`
+    // di sini selalu nil dan muncul error "User tidak ditemukan" saat simpan transaksi.
+    // Sekarang resolve langsung dari Firebase Auth (sumber kebenaran login yang aktif)
+    // dicocokkan dengan email di UserProfile/User lokal.
     private var currentUser: User? {
-        let descriptor = FetchDescriptor<User>()
-        let users = (try? modelContext.fetch(descriptor)) ?? []
-        if let currentRole = authService.currentUser?.role {
-            return users.first { $0.role == currentRole }
+        let userDescriptor = FetchDescriptor<User>()
+        let users = (try? modelContext.fetch(userDescriptor)) ?? []
+        guard !users.isEmpty else { return nil }
+
+        if let email = Auth.auth().currentUser?.email,
+           let match = users.first(where: { $0.email == email }) {
+            return match
         }
         return users.first
     }
@@ -86,41 +100,65 @@ struct AddIncomeView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            .sheet(isPresented: $showAddCategory, onDismiss: { refreshData() }) {
+                CategoryFormView(defaultType: .income)
+            }
+            .sheet(isPresented: $showEditCategory, onDismiss: { refreshData() }) {
+                if let category = categoryToEdit {
+                    CategoryFormView(existingCategory: category)
+                }
+            }
+            .alert("Hapus Kategori?", isPresented: $showDeleteConfirm) {
+                Button("Batal", role: .cancel) {}
+                Button("Hapus", role: .destructive) {
+                    if let category = categoryToDelete {
+                        deleteCategory(category)
+                    }
+                }
+            } message: {
+                if let category = categoryToDelete {
+                    Text("Kategori '\(category.name)' akan dihapus permanen")
+                }
+            }
             .onAppear {
-                let dataService = DataService.shared
-
-                categories = dataService.fetchCategories(type: .income)
-                wallets = dataService.fetchWallets()
-                let usr = currentUser
-
-                debugText = "Cat:\(categories.count) Wallet:\(wallets.count) User:\(usr?.name ?? "nil")"
-
-                if selectedCategory == nil, let firstCat = categories.first {
-                    selectedCategory = firstCat
-                }
-                if selectedWallet == nil, let firstWal = wallets.first {
-                    selectedWallet = firstWal
-                }
-
-                if categories.isEmpty {
-                    dataService.setupDefaultData()
-                    categories = dataService.fetchCategories(type: .income)
-                    wallets = dataService.fetchWallets()
-
-                    if selectedCategory == nil, let firstCat = categories.first {
-                        selectedCategory = firstCat
-                    }
-                    if selectedWallet == nil, let firstWal = wallets.first {
-                        selectedWallet = firstWal
-                    }
-                }
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isAmountFocused = true
-                }
+                refreshData()
             }
         }
         .tint(.white)
+    }
+
+    private func refreshData() {
+        let dataService = DataService.shared
+
+        categories = dataService.fetchCategories(type: .income)
+        wallets = dataService.fetchWallets()
+        let usr = currentUser
+
+        debugText = "Cat:\(categories.count) Wallet:\(wallets.count) User:\(usr?.name ?? "nil")"
+
+        if selectedCategory == nil, let firstCat = categories.first {
+            selectedCategory = firstCat
+        }
+        if selectedWallet == nil, let firstWal = wallets.first {
+            selectedWallet = firstWal
+        }
+
+        if categories.isEmpty {
+            dataService.setupDefaultData()
+            categories = dataService.fetchCategories(type: .income)
+            wallets = dataService.fetchWallets()
+
+            if selectedCategory == nil, let firstCat = categories.first {
+                selectedCategory = firstCat
+            }
+            if selectedWallet == nil, let firstWal = wallets.first {
+                selectedWallet = firstWal
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isAmountFocused = true
+        }
     }
 
     private var amountCard: some View {
@@ -161,11 +199,27 @@ struct AddIncomeView: View {
 
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("KATEGORI")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(.white.opacity(0.6))
-                .tracking(1)
+            HStack {
+                Text("KATEGORI")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.6))
+                    .tracking(1)
+
+                Spacer()
+
+                Button {
+                    showAddCategory = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14))
+                        Text("Tambah")
+                            .font(.caption)
+                    }
+                    .foregroundColor(Color(hex: "64B4FF") ?? .blue)
+                }
+            }
 
             if categories.isEmpty {
                 VStack(spacing: 8) {
@@ -175,9 +229,9 @@ struct AddIncomeView: View {
                     Text("Belum ada kategori pemasukan")
                         .font(.body)
                         .foregroundColor(.white.opacity(0.6))
-                    Text("Restart app atau cek DataService")
+                    Text("Tap 'Tambah' untuk buat kategori")
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(Color(hex: "64B4FF") ?? .blue)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 20)
@@ -191,6 +245,21 @@ struct AddIncomeView: View {
                             ) {
                                 withAnimation(.spring(duration: 0.3)) {
                                     selectedCategory = category
+                                }
+                            }
+                            .contextMenu {
+                                Button {
+                                    categoryToEdit = category
+                                    showEditCategory = true
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+
+                                Button(role: .destructive) {
+                                    categoryToDelete = category
+                                    showDeleteConfirm = true
+                                } label: {
+                                    Label("Hapus", systemImage: "trash")
                                 }
                             }
                         }
@@ -401,6 +470,27 @@ struct AddIncomeView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             dismiss()
         }
+    }
+
+    // FIX: #Predicate - capture categoryID di luar closure
+    private func deleteCategory(_ category: Category) {
+        let categoryID = category.id
+
+        let transactionDescriptor = FetchDescriptor<Transaction>(
+            predicate: #Predicate { transaction in
+                transaction.category?.id == categoryID
+            }
+        )
+        let transactions = (try? modelContext.fetch(transactionDescriptor)) ?? []
+
+        guard transactions.isEmpty else {
+            errorMessage = "Kategori '\(category.name)' tidak bisa dihapus karena masih ada \(transactions.count) transaksi"
+            return
+        }
+
+        modelContext.delete(category)
+        try? modelContext.save()
+        refreshData()
     }
 }
 

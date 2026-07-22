@@ -396,7 +396,7 @@ struct TransactionListCard: View {
     }
 }
 
-// MARK: - Swipeable Transaction Row (for AllTransactionsView)
+// MARK: - Swipeable Transaction Row (Seamless / Hidden Buttons)
 struct SwipeableTransactionRowAll: View {
     let transaction: Transaction
     let currencyCode: String
@@ -471,46 +471,39 @@ struct SwipeableTransactionRowAll: View {
 
     var body: some View {
         ZStack {
-            // Background actions layer
+            // Background color layer — seamless, no buttons visible
             HStack(spacing: 0) {
-                // LEFT side - EDIT
-                Button(action: {
-                    withAnimation(.spring()) { offset = 0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onEdit() }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 20, weight: .semibold))
-                        Text("Edit")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: actionWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.blue)
+                // LEFT side — EDIT (blue) reveals as you swipe right
+                ZStack {
+                    Color.blue.opacity(0.9)
+
+                    Image(systemName: "pencil")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .opacity(offset > 20 ? 1 : 0)
+                        .scaleEffect(offset > 40 ? 1 : 0.5)
                 }
+                .frame(width: offset > 0 ? min(offset, actionWidth) : 0)
+                .opacity(offset > 0 ? 1 : 0)
 
                 Spacer()
 
-                // RIGHT side - DELETE
-                Button(action: {
-                    withAnimation(.spring()) { offset = 0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onDelete() }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                        Text("Hapus")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: actionWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.red)
-                }
-            }
+                // RIGHT side — DELETE (red) reveals as you swipe left
+                ZStack {
+                    Color.red.opacity(0.9)
 
-            // Foreground row content - solid background to hide actions behind
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .opacity(offset < -20 ? 1 : 0)
+                        .scaleEffect(offset < -40 ? 1 : 0.5)
+                }
+                .frame(width: offset < 0 ? min(abs(offset), actionWidth) : 0)
+                .opacity(offset < 0 ? 1 : 0)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            // Foreground row content — solid background to hide actions behind
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
@@ -562,8 +555,8 @@ struct SwipeableTransactionRowAll: View {
             )
             .cornerRadius(12)
             .offset(x: offset)
-            .gesture(
-                DragGesture()
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 15)
                     .onChanged { value in
                         let width = value.translation.width
                         if width > 0 {
@@ -574,13 +567,29 @@ struct SwipeableTransactionRowAll: View {
                     }
                     .onEnded { value in
                         let width = value.translation.width
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            if width > swipeThreshold {
+                        let velocity = value.predictedEndLocation.x - value.location.x
+
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            // Snap to action if swiped far enough or with velocity
+                            if width > swipeThreshold || velocity > 100 {
                                 offset = actionWidth
-                            } else if width < -swipeThreshold {
+                            } else if width < -swipeThreshold || velocity < -100 {
                                 offset = -actionWidth
                             } else {
                                 offset = 0
+                            }
+                        }
+
+                        // Auto-trigger after snap animation
+                        if offset == actionWidth {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                withAnimation(.spring()) { offset = 0 }
+                                onEdit()
+                            }
+                        } else if offset == -actionWidth {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                withAnimation(.spring()) { offset = 0 }
+                                onDelete()
                             }
                         }
                     }

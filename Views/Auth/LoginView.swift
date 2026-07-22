@@ -2,6 +2,8 @@ import SwiftUI
 import UIKit
 import LocalAuthentication
 import SwiftData
+import FirebaseAuth
+import GoogleSignIn
 
 // MARK: - Floating Particle
 struct LoginParticle: View {
@@ -165,7 +167,7 @@ struct SocialButton: View {
     }
 }
 
-// MARK: - Security Badge (di akhir halaman)
+// MARK: - Security Badge
 struct SecurityBadge: View {
     var body: some View {
         HStack(spacing: 6) {
@@ -195,7 +197,10 @@ struct SecurityBadge: View {
 struct LoginView: View {
     var onLoginSuccess: (() -> Void)? = nil
 
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var dataService = DataService.shared
+    @State private var authService = AuthService.shared
+
     @State private var showSignUp: Bool = false
     @State private var showForgotPassword: Bool = false
     @State private var rememberMe: Bool = true
@@ -223,7 +228,6 @@ struct LoginView: View {
     }
 
     private func validateAndLogin() {
-        // Basic validation
         guard !email.isEmpty else {
             showErrorToast(message: "Email tidak boleh kosong")
             return
@@ -235,38 +239,37 @@ struct LoginView: View {
 
         isLoading = true
 
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isLoading = false
+        Task {
+            await authService.signIn(email: email, password: password, modelContext: modelContext)
 
-            // Check if user exists in database
-            let allUsers = dataService.fetchUsers()
-            print("🔍 Login attempt: \(email) / \(password)")
-            print("🔍 Found \(allUsers.count) users")
-            for user in allUsers {
-                print("🔍 User: \(user.email) / \(user.password)")
-            }
-            if let matchedUser = allUsers.first(where: {
-                $0.email.lowercased() == email.lowercased() &&
-                $0.password == password
-            }) {
-                // Login successful
-                print("✅ Login berhasil untuk: \(matchedUser.email)")
-                UserDefaults.standard.set(true, forKey: "isUserLoggedIn")
-                UserDefaults.standard.set(rememberMe, forKey: "rememberMe")
-                UserDefaults.standard.synchronize()
-                onLoginSuccess?()
-            } else {
-                print("❌ No matching user found")
-                // Fallback demo account
-                if email.lowercased() == "demo@safemoney.com" && password == "demo123" {
-                    print("✅ Demo login berhasil")
+            await MainActor.run {
+                isLoading = false
+                if authService.isAuthenticated {
                     UserDefaults.standard.set(true, forKey: "isUserLoggedIn")
                     UserDefaults.standard.set(rememberMe, forKey: "rememberMe")
                     UserDefaults.standard.synchronize()
                     onLoginSuccess?()
-                } else {
-                    showErrorToast(message: "Email atau password salah")
+                } else if let error = authService.errorMessage {
+                    showErrorToast(message: error)
+                }
+            }
+        }
+    }
+
+    private func signInWithGoogle() {
+        isLoading = true
+        Task {
+            await authService.signInWithGoogle(modelContext: modelContext)
+
+            await MainActor.run {
+                isLoading = false
+                if authService.isAuthenticated {
+                    UserDefaults.standard.set(true, forKey: "isUserLoggedIn")
+                    UserDefaults.standard.set(rememberMe, forKey: "rememberMe")
+                    UserDefaults.standard.synchronize()
+                    onLoginSuccess?()
+                } else if let error = authService.errorMessage {
+                    showErrorToast(message: error)
                 }
             }
         }
@@ -344,7 +347,7 @@ struct LoginView: View {
                 LoginBPLogo()
                     .padding(.bottom, 12)
 
-                // Tagline only (no SafeMoney text)
+                // Tagline
                 Text("Secure Your Future")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Color(hex: "64B4FF")!.opacity(0.5))
@@ -477,8 +480,12 @@ struct LoginView: View {
 
                 // Social Login
                 HStack(spacing: 12) {
-                    SocialButton(icon: "globe", label: "Google") {}
-                    SocialButton(icon: "apple.logo", label: "Apple") {}
+                    SocialButton(icon: "globe", label: "Google") {
+                        signInWithGoogle()
+                    }
+                    SocialButton(icon: "apple.logo", label: "Apple") {
+                        // Apple Sign In - belum diimplementasikan
+                    }
                 }
                 .padding(.horizontal, 32)
 
@@ -501,16 +508,14 @@ struct LoginView: View {
                 .padding(.bottom, 16)
                 .sheet(isPresented: $showSignUp) {
                     SignUpView(onSignUpSuccess: {
-                        // First dismiss the sheet
                         showSignUp = false
-                        // Then trigger login success after sheet animation completes
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             onLoginSuccess?()
                         }
                     })
                 }
 
-                // ===== SECURITY BADGE (DI AKHIR) =====
+                // Security Badge
                 SecurityBadge()
                     .padding(.bottom, 24)
             }
@@ -523,7 +528,9 @@ struct SignUpView: View {
     var onSignUpSuccess: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var dataService = DataService.shared
+    @State private var authService = AuthService.shared
 
     @State private var name: String = ""
     @State private var email: String = ""
@@ -543,7 +550,6 @@ struct SignUpView: View {
     }
 
     private func validateAndSignUp() {
-        // Validation
         guard !name.isEmpty else {
             showErrorToast(message: "Nama tidak boleh kosong")
             return
@@ -569,48 +575,27 @@ struct SignUpView: View {
             return
         }
 
-        // Check if email already exists
-        if dataService.fetchUsers().contains(where: { $0.email.lowercased() == email.lowercased() }) {
-            showErrorToast(message: "Email sudah terdaftar")
-            return
-        }
-
         isLoading = true
 
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isLoading = false
+        Task {
+            await authService.signUp(
+                email: email,
+                password: password,
+                displayName: name,
+                role: selectedRole,
+                modelContext: modelContext
+            )
 
-            do {
-                // Create new user
-                let colorHex = selectedRole == .husband ? "#007AFF" : "#FF2D92"
-                let newUser = User(
-                    name: name,
-                    email: email,
-                    password: password,
-                    role: selectedRole,
-                    colorHex: colorHex
-                )
-
-                // FIX: Unwrap modelContext before using
-                guard let context = dataService.modelContext else {
-                    showErrorToast(message: "Database tidak tersedia")
-                    return
+            await MainActor.run {
+                isLoading = false
+                if authService.isAuthenticated {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        onSignUpSuccess?()
+                    }
+                } else if let error = authService.errorMessage {
+                    showErrorToast(message: error)
                 }
-
-                // Insert to SwiftData context
-                context.insert(newUser)
-                try context.save()
-
-                print("✅ User berhasil didaftarkan: \(email)")
-
-                // Delay slightly to let save complete before view transition
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    onSignUpSuccess?()
-                }
-            } catch {
-                showErrorToast(message: "Gagal menyimpan: \(error.localizedDescription)")
-                print("❌ Error saving user: \(error)")
             }
         }
     }

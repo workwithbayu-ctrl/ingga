@@ -16,6 +16,15 @@ struct DashboardView: View {
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
 
+    // MARK: - Settings Side Menu State
+    @State private var showSettings = false
+    @State private var settingsDragOffset: CGFloat = 0
+    private let settingsMenuWidth: CGFloat = 280
+    private let settingsSwipeThreshold: CGFloat = 60
+
+    // MARK: - Navigation State for Settings
+    @State private var selectedSettingsDestination: SettingsDestination?
+
     private var walletBalance: Double {
         wallets.reduce(0) { $0 + $1.balance }
     }
@@ -56,9 +65,99 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
+            GeometryReader { geometry in
+                ZStack {
+                    // Background layer - tutupi seluruh screen
+                    Color(hex: "0B1220")!
+                        .ignoresSafeArea()
+
+                    // Main Dashboard Content
+                    mainContent
+                        .offset(x: showSettings ? settingsMenuWidth : 0)
+                        .offset(x: settingsDragOffset)
+                        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.85), value: showSettings)
+                        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.85), value: settingsDragOffset)
+
+                    // Settings Side Menu - FIX: zIndex tinggi + contentShape + allowsHitTesting
+                    if showSettings || settingsDragOffset > 0 {
+                        SettingsSideMenu(
+                            isShowing: $showSettings,
+                            selectedDestination: $selectedSettingsDestination
+                        )
+                        .frame(width: settingsMenuWidth, height: geometry.size.height)
+                        .offset(x: showSettings ? 0 : -settingsMenuWidth + settingsDragOffset)
+                        .offset(x: !showSettings && settingsDragOffset > 0 ? -settingsMenuWidth + settingsDragOffset : 0)
+                        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.85), value: showSettings)
+                        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.85), value: settingsDragOffset)
+                        .zIndex(10) // FIX: zIndex tinggi supaya di atas semua
+                        .contentShape(Rectangle()) // FIX: pastikan seluruh area bisa menerima tap
+                        .allowsHitTesting(true)
+                    }
+
+                    // Overlay to close settings when tapping outside
+                    if showSettings {
+                        Color.black.opacity(0.01) // FIX: opacity sangat tipis tapi tetap menerima tap
+                            .ignoresSafeArea()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .onTapGesture {
+                                withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                                    showSettings = false
+                                }
+                            }
+                            .zIndex(5)
+                    }
+                }
+                // FIX: Gesture hanya di area konten (kanan), bukan di area menu (kiri)
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            // Hanya aktif di area kanan (bukan di area menu)
+                            let isInMenuArea = value.startLocation.x < settingsMenuWidth && showSettings
+                            let isEdgeSwipe = value.startLocation.x < 30 && !showSettings
+
+                            if !showSettings && value.translation.width > 0 && isEdgeSwipe {
+                                settingsDragOffset = min(value.translation.width, settingsMenuWidth)
+                            } else if showSettings && value.translation.width < 0 && !isInMenuArea {
+                                settingsDragOffset = max(value.translation.width, -settingsMenuWidth)
+                            }
+                        }
+                        .onEnded { value in
+                            if !showSettings {
+                                if value.translation.width > settingsSwipeThreshold {
+                                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                                        showSettings = true
+                                        settingsDragOffset = 0
+                                    }
+                                } else {
+                                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                                        settingsDragOffset = 0
+                                    }
+                                }
+                            } else {
+                                if value.translation.width < -settingsSwipeThreshold {
+                                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                                        showSettings = false
+                                        settingsDragOffset = 0
+                                    }
+                                } else {
+                                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                                        settingsDragOffset = 0
+                                    }
+                                }
+                            }
+                        }
+                )
+            }
+            .navigationDestination(item: $selectedSettingsDestination) { destination in
+                destinationView(for: destination)
+            }
+        }
+    }
+
+    // MARK: - Main Content
+    private var mainContent: some View {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
-                // Top Bar
                 topBar
 
                 BalanceCardView(
@@ -90,7 +189,6 @@ struct DashboardView: View {
                     )
                 }
 
-                // Pocket Section
                 PocketSectionCard(pockets: pockets, wallets: wallets)
 
                 RecentTransactionsCard(
@@ -122,11 +220,28 @@ struct DashboardView: View {
                 EditTransactionSheet(transaction: t, pockets: pockets, wallets: wallets)
             }
         }
+    }
+
+    // MARK: - Destination Views
+    @ViewBuilder
+    private func destinationView(for destination: SettingsDestination) -> some View {
+        switch destination {
+        case .profile:
+            ProfileView()
+        case .notifications:
+            NotificationSettingsView()
+        case .security:
+            SecurityView()
+        case .theme:
+            ThemeView()
+        case .help:
+            HelpView()
+        case .logout:
+            LogoutView()
         }
     }
 
     private func deleteTransaction(_ transaction: Transaction) {
-        // FIX: Update wallet balance before deleting
         if let wallet = transaction.wallet {
             if transaction.type == .income {
                 wallet.balance -= transaction.amount
@@ -135,13 +250,15 @@ struct DashboardView: View {
             }
             wallet.updatedAt = Date()
         }
-
         modelContext.delete(transaction)
         try? modelContext.save()
     }
 
     private var topBar: some View {
         HStack {
+            Spacer()
+                .frame(width: 4)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("Selamat Datang")
                     .font(.system(size: 14))
@@ -166,11 +283,9 @@ struct DashboardView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                         )
-
                     Text("Suami")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
-
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.6))
@@ -179,6 +294,16 @@ struct DashboardView: View {
         }
         .padding(.horizontal, 4)
     }
+}
+
+// MARK: - Settings Destination Enum
+enum SettingsDestination: Hashable {
+    case profile
+    case notifications
+    case security
+    case theme
+    case help
+    case logout
 }
 
 // MARK: - Pocket Section Card
@@ -193,9 +318,7 @@ struct PocketSectionCard: View {
                 Text("Pocket Tabungan")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
-
                 Spacer()
-
                 NavigationLink(destination: PocketListView()) {
                     HStack(spacing: 4) {
                         Text("Lihat Semua")
@@ -235,10 +358,7 @@ struct PocketSectionCard: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(hex: "2C5282") ?? Color.blue,
-                    Color(hex: "0B1220") ?? Color.black
-                ],
+                colors: [Color(hex: "2C5282") ?? Color.blue, Color(hex: "0B1220") ?? Color.black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -287,13 +407,11 @@ struct PocketMiniCard: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
 
-            // Mini progress
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.white.opacity(0.2))
                         .frame(height: 4)
-
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color(hex: pocket.colorHex) ?? .blue)
                         .frame(width: geo.size.width * CGFloat(pocket.progress), height: 4)
@@ -353,9 +471,7 @@ struct SpendingChartCardView: View {
                 Text("Pengeluaran Bulan Ini")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
-
                 Spacer()
-
                 Text("Juli 2025")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
@@ -363,7 +479,6 @@ struct SpendingChartCardView: View {
                     .padding(.vertical, 4)
                     .background(Color.white.opacity(0.15))
                     .cornerRadius(8)
-
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showDetails.toggle()
@@ -381,17 +496,14 @@ struct SpendingChartCardView: View {
                 Text("Total Pengeluaran")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
-
                 HStack(alignment: .lastTextBaseline, spacing: 4) {
                     Text("Rp")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.9))
-
                     Text(formattedAmount(monthlyExpense))
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                 }
-
                 if !showDetails {
                     Text("Tap mata untuk melihat detail")
                         .font(.system(size: 11))
@@ -406,11 +518,9 @@ struct SpendingChartCardView: View {
                     .background(Color.white.opacity(0.2))
                     .padding(.horizontal, 20)
                     .transition(.opacity)
-
                 HStack(spacing: 20) {
                     DonutChartView(categories: categoryExpenses)
                         .frame(width: 120, height: 120)
-
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(0..<min(categoryExpenses.count, 5), id: \.self) { index in
                             let item = categoryExpenses[index]
@@ -418,13 +528,10 @@ struct SpendingChartCardView: View {
                                 Circle()
                                     .fill(item.color)
                                     .frame(width: 8, height: 8)
-
                                 Text(item.category)
                                     .font(.system(size: 12))
                                     .foregroundColor(.white.opacity(0.8))
-
                                 Spacer()
-
                                 Text("Rp \(formattedAmount(item.amount))")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(.white)
@@ -441,10 +548,7 @@ struct SpendingChartCardView: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(hex: "2C5282") ?? Color.blue,
-                    Color(hex: "0B1220") ?? Color.black
-                ],
+                colors: [Color(hex: "2C5282") ?? Color.blue, Color(hex: "0B1220") ?? Color.black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -474,17 +578,14 @@ struct DonutChartView: View {
 
     var body: some View {
         let total = categories.reduce(0) { $0 + $1.amount }
-
         ZStack {
             Circle()
                 .stroke(Color.white.opacity(0.1), lineWidth: 20)
-
             ForEach(0..<categories.count, id: \.self) { index in
                 let item = categories[index]
                 let percentage = total > 0 ? item.amount / total : 0
                 let previousPercentage = index > 0 ?
                     categories[0..<index].reduce(0) { $0 + ($1.amount / total) } : 0
-
                 Circle()
                     .trim(from: 0, to: CGFloat(percentage))
                     .stroke(item.color, style: StrokeStyle(lineWidth: 20, lineCap: .round))
@@ -509,18 +610,15 @@ struct StatCardDark: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(iconColor.opacity(0.2))
                         .frame(width: 36, height: 36)
-
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(iconColor)
                 }
                 Spacer()
             }
-
             Text(title)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
-
             Text("\(currencyCode) \(formattedAmount(amount))")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
@@ -531,10 +629,7 @@ struct StatCardDark: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(hex: "2C5282") ?? Color.blue,
-                    Color(hex: "0B1220") ?? Color.black
-                ],
+                colors: [Color(hex: "2C5282") ?? Color.blue, Color(hex: "0B1220") ?? Color.black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -574,9 +669,7 @@ struct RecentTransactionsCard: View {
                 Text("Transaksi Terbaru")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
-
                 Spacer()
-
                 NavigationLink(destination: AllTransactionsView()) {
                     HStack(spacing: 4) {
                         Text("Lihat Semua")
@@ -611,7 +704,6 @@ struct RecentTransactionsCard: View {
                                 showEditSheet = true
                             }
                         )
-
                         if index < transactions.count - 1 {
                             Divider()
                                 .background(Color.white.opacity(0.1))
@@ -626,10 +718,7 @@ struct RecentTransactionsCard: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(hex: "2C5282") ?? Color.blue,
-                    Color(hex: "0B1220") ?? Color.black
-                ],
+                colors: [Color(hex: "2C5282") ?? Color.blue, Color(hex: "0B1220") ?? Color.black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -643,9 +732,7 @@ struct RecentTransactionsCard: View {
     }
 }
 
-// MARK: - Swipeable Transaction Row
-// Swipe Kanan -> Kiri = Hapus (merah)
-// Swipe Kiri -> Kanan = Edit (biru)
+// MARK: - Swipeable Transaction Row (Seamless / Hidden Buttons)
 struct SwipeableTransactionRow: View {
     let transaction: Transaction
     let currencyCode: String
@@ -707,54 +794,45 @@ struct SwipeableTransactionRow: View {
     }
 
     var body: some View {
-        // Container with clip to hide overflow
         ZStack {
-            // Background actions - hidden behind row when offset=0
+            // Background color layer — seamless, no buttons visible
             HStack(spacing: 0) {
-                // LEFT - EDIT (biru)
-                Button(action: {
-                    withAnimation(.spring()) { offset = 0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onEdit() }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 20, weight: .semibold))
-                        Text("Edit")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: actionWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.blue)
+                // LEFT side — EDIT (blue) reveals as you swipe right
+                ZStack {
+                    Color.blue.opacity(0.9)
+
+                    Image(systemName: "pencil")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .opacity(offset > 20 ? 1 : 0)
+                        .scaleEffect(offset > 40 ? 1 : 0.5)
                 }
+                .frame(width: offset > 0 ? min(offset, actionWidth) : 0)
+                .opacity(offset > 0 ? 1 : 0)
 
                 Spacer()
 
-                // RIGHT - DELETE (merah)
-                Button(action: {
-                    withAnimation(.spring()) { offset = 0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onDelete() }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                        Text("Hapus")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: actionWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.red)
-                }
-            }
+                // RIGHT side — DELETE (red) reveals as you swipe left
+                ZStack {
+                    Color.red.opacity(0.9)
 
-            // Foreground row - slides to reveal background
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .opacity(offset < -20 ? 1 : 0)
+                        .scaleEffect(offset < -40 ? 1 : 0.5)
+                }
+                .frame(width: offset < 0 ? min(abs(offset), actionWidth) : 0)
+                .opacity(offset < 0 ? 1 : 0)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            // Foreground row content — solid background to hide actions behind
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 44, height: 44)
-
                     if UIImage(systemName: categoryIcon) != nil {
                         Image(systemName: categoryIcon)
                             .font(.system(size: 20))
@@ -770,7 +848,6 @@ struct SwipeableTransactionRow: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(.white)
                         .lineLimit(1)
-
                     if !categoryName.isEmpty {
                         Text(categoryName)
                             .font(.system(size: 12))
@@ -786,21 +863,17 @@ struct SwipeableTransactionRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
-            // FIX: Use a solid background that matches the card instead of transparent
             .background(
                 LinearGradient(
-                    colors: [
-                        Color(hex: "2C5282") ?? Color.blue,
-                        Color(hex: "0B1220") ?? Color.black
-                    ],
+                    colors: [Color(hex: "2C5282") ?? Color.blue, Color(hex: "0B1220") ?? Color.black],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .cornerRadius(12)
             .offset(x: offset)
-            .gesture(
-                DragGesture()
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 15)
                     .onChanged { value in
                         let width = value.translation.width
                         if width > 0 {
@@ -811,13 +884,28 @@ struct SwipeableTransactionRow: View {
                     }
                     .onEnded { value in
                         let width = value.translation.width
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            if width > swipeThreshold {
+                        let velocity = value.predictedEndLocation.x - value.location.x
+
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            if width > swipeThreshold || velocity > 100 {
                                 offset = actionWidth
-                            } else if width < -swipeThreshold {
+                            } else if width < -swipeThreshold || velocity < -100 {
                                 offset = -actionWidth
                             } else {
                                 offset = 0
+                            }
+                        }
+
+                        // Auto-trigger after snap animation
+                        if offset == actionWidth {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                withAnimation(.spring()) { offset = 0 }
+                                onEdit()
+                            }
+                        } else if offset == -actionWidth {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                withAnimation(.spring()) { offset = 0 }
+                                onDelete()
                             }
                         }
                     }
@@ -835,6 +923,134 @@ struct SwipeableTransactionRow: View {
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSNumber(value: amount)) ?? "0"
+    }
+}
+
+// MARK: - Settings Side Menu (FIX: pakai Button + navigationDestination)
+struct SettingsSideMenu: View {
+    @Binding var isShowing: Bool
+    @Binding var selectedDestination: SettingsDestination?
+
+    var body: some View {
+        ZStack {
+            Color(hex: "161F30")!
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Pengaturan")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button {
+                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                            isShowing = false
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                .padding(.bottom, 20)
+
+                // Menu Items - FIX: pakai Button yang set selectedDestination
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 8) {
+                        SettingsMenuButton(icon: "person.fill", title: "Profil", color: "64B4FF") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .profile
+                            }
+                        }
+                        SettingsMenuButton(icon: "bell.fill", title: "Notifikasi", color: "FF9500") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .notifications
+                            }
+                        }
+                        SettingsMenuButton(icon: "lock.fill", title: "Keamanan", color: "34C759") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .security
+                            }
+                        }
+                        SettingsMenuButton(icon: "paintbrush.fill", title: "Tema", color: "AF52DE") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .theme
+                            }
+                        }
+                        SettingsMenuButton(icon: "questionmark.circle.fill", title: "Bantuan", color: "5AC8FA") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .help
+                            }
+                        }
+
+                        Divider()
+                            .background(Color.white.opacity(0.1))
+                            .padding(.vertical, 8)
+
+                        SettingsMenuButton(icon: "arrow.right.square.fill", title: "Keluar", color: "FF3B30") {
+                            isShowing = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                selectedDestination = .logout
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                Spacer()
+
+                Text("FamilyBudgetPro v1.0")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.3))
+                    .padding(.bottom, 30)
+            }
+        }
+    }
+}
+
+// MARK: - Settings Menu Button (FIX: pakai Button biasa, bukan NavigationLink)
+struct SettingsMenuButton: View {
+    let icon: String
+    let title: String
+    let color: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(hex: color)!.opacity(0.2))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(hex: color)!)
+                }
+
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -887,7 +1103,6 @@ struct EditTransactionSheet: View {
                     }
                     .listRowBackground(Color.white.opacity(0.05))
 
-                    // Pocket allocation section for income
                     if transaction.type == .income && !pockets.isEmpty {
                         Section("Alokasi ke Pocket") {
                             Toggle("Alokasi otomatis", isOn: $allocateToPocket)
@@ -928,7 +1143,6 @@ struct EditTransactionSheet: View {
     }
 
     private func saveChanges() {
-        // FIX: Update wallet balance when amount changes
         let oldAmount = transaction.amount
         if let newAmount = Double(amount), let wallet = transaction.wallet {
             let diff = newAmount - oldAmount
@@ -943,7 +1157,6 @@ struct EditTransactionSheet: View {
         transaction.note = note
         transaction.date = date
 
-        // Auto-allocate to pocket if selected
         if allocateToPocket, let pocket = selectedPocket, transaction.type == .income {
             let allocationAmount = transaction.amount * (pocket.allocationPercentage / 100)
             if let wallet = wallets.first(where: { $0.id == pocket.walletID }) {

@@ -13,7 +13,7 @@ struct MiniBPLogo: View {
             // Outer dotted ring
             Circle()
                 .stroke(
-                    Color(hex: "64B4FF")!.opacity(0.4),
+                    (Color(hex: "64B4FF")!).opacity(0.4),
                     style: StrokeStyle(lineWidth: 1, dash: [2, 5])
                 )
                 .frame(width: 32, height: 32)
@@ -22,7 +22,7 @@ struct MiniBPLogo: View {
             // Inner dotted ring
             Circle()
                 .stroke(
-                    Color(hex: "64B4FF")!.opacity(0.2),
+                    (Color(hex: "64B4FF")!).opacity(0.2),
                     style: StrokeStyle(lineWidth: 0.5, dash: [1, 4])
                 )
                 .frame(width: 26, height: 26)
@@ -53,11 +53,10 @@ struct MiniBPLogo: View {
 struct ContentView: View {
     var onLogout: (() -> Void)? = nil
 
-    @EnvironmentObject private var dataService: DataService
-
     @State private var selectedTab: Int = 0
     @State private var showAddMenu: Bool = false
     @State private var showSettings: Bool = false
+    @State private var logoutRequested: Bool = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -69,12 +68,20 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(onLogout: {
+                print("🚪 SettingsView onLogout triggered")
+                logoutRequested = true
                 showSettings = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    onLogout?()
-                }
             })
-            .environmentObject(dataService)
+        }
+        // ⭐ FIX: transisi ke LoginView ditentukan oleh KONFIRMASI USER (logoutRequested),
+        // bukan oleh berhasil-tidaknya panggilan jaringan Firebase (Auth.auth().signOut()
+        // bisa gagal diam-diam kalau ada masalah koneksi/keychain, dan itu tidak boleh
+        // mengunci user di dalam app).
+        .onChange(of: showSettings) { _, isShown in
+            if !isShown && logoutRequested {
+                print("🚪 Sheet closed & logout confirmed -> calling onLogout")
+                onLogout?()
+            }
         }
     }
 
@@ -85,6 +92,8 @@ struct ContentView: View {
             DashboardView()
         case 1:
             WalletListView()
+        case 2:
+            CategoryManagementView()
         case 3:
             PocketListView()
         case 4:
@@ -99,21 +108,28 @@ struct ContentView: View {
             Divider()
                 .background(Color.white.opacity(0.1))
 
-            // Top bar with settings and AI
+            // FIX: Top row with Add Button (left) and MiniBP Logo (right) - same size, same row
             HStack {
-                // Settings Button
-                Button(action: {
-                    showSettings = true
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(Color(hex: "64B4FF")!)
-                        .frame(width: 36, height: 36)
+                // Add Button - seukuran dengan MiniBPLogo (32x32)
+                Button(action: { showAddMenu = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "2C5282")!)
+                            .frame(width: 32, height: 32)
+
+                        Circle()
+                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
                 }
 
                 Spacer()
 
-                // AI Assistant Button
+                // AI Assistant Button (MiniBP Logo)
                 Button(action: {
                     print("🤖 AI Assistant tapped")
                 }) {
@@ -123,6 +139,7 @@ struct ContentView: View {
             .padding(.horizontal, 20)
             .padding(.top, 4)
 
+            // Tab items row - 5 items tanpa FAB di tengah
             HStack(alignment: .bottom, spacing: 0) {
                 TabBarItem(
                     icon: "house.fill",
@@ -138,7 +155,12 @@ struct ContentView: View {
                     action: { selectedTab = 1 }
                 )
 
-                TabBarFAB(action: { showAddMenu = true })
+                TabBarItem(
+                    icon: "tag.fill",
+                    label: "Kategori",
+                    isSelected: selectedTab == 2,
+                    action: { selectedTab = 2 }
+                )
 
                 TabBarItem(
                     icon: "star.fill",
@@ -156,7 +178,7 @@ struct ContentView: View {
             }
             .padding(.top, 6)
             .padding(.bottom, 20)
-            .background(Color(hex: "0B1220") ?? Color.black)
+            .background(Color(hex: "0B1220")!)
         }
     }
 }
@@ -188,36 +210,6 @@ struct TabBarItem: View {
     }
 }
 
-// MARK: - Tab Bar FAB
-struct TabBarFAB: View {
-    let action: () -> Void
-
-    private var fabColor: Color {
-        Color(hex: "2C5282") ?? Color.blue
-    }
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(fabColor)
-                    .frame(width: 48, height: 48)
-                    .shadow(color: Color.black.opacity(0.4), radius: 8, x: 0, y: 4)
-
-                Circle()
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                    .frame(width: 48, height: 48)
-
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-        }
-        .offset(y: -10)
-        .frame(maxWidth: .infinity)
-    }
-}
-
 // MARK: - Add Transaction Menu Sheet
 struct AddTransactionMenuSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -225,7 +217,7 @@ struct AddTransactionMenuSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+                (Color(hex: "0B1220")!).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     closeButton
@@ -287,51 +279,51 @@ struct AddTransactionMenuSheet: View {
         }
         .padding(.horizontal, 20)
     }
-}
 
-// MARK: - Menu Row
-struct MenuRow: View {
-    let title: String
-    let icon: String
-    let iconColor: Color
-    let destination: AnyView
+    // MARK: - Menu Row
+    struct MenuRow: View {
+        let title: String
+        let icon: String
+        let iconColor: Color
+        let destination: AnyView
 
-    var body: some View {
-        NavigationLink(destination: destination) {
-            HStack(spacing: 16) {
-                iconView
-                titleText
-                Spacer()
-                chevron
+        var body: some View {
+            NavigationLink(destination: destination) {
+                HStack(spacing: 16) {
+                    iconView
+                    titleText
+                    Spacer()
+                    chevron
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.white.opacity(0.08))
+                .cornerRadius(16)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color.white.opacity(0.08))
-            .cornerRadius(16)
         }
-    }
 
-    private var iconView: some View {
-        ZStack {
-            Circle()
-                .fill(iconColor.opacity(0.2))
-                .frame(width: 48, height: 48)
+        private var iconView: some View {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.2))
+                    .frame(width: 48, height: 48)
 
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundColor(iconColor)
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(iconColor)
+            }
         }
-    }
 
-    private var titleText: some View {
-        Text(title)
-            .font(.system(size: 17, weight: .medium))
-            .foregroundColor(.white)
-    }
+        private var titleText: some View {
+            Text(title)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(.white)
+        }
 
-    private var chevron: some View {
-        Image(systemName: "chevron.right")
-            .font(.system(size: 14))
-            .foregroundColor(.white.opacity(0.4))
+        private var chevron: some View {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14))
+                .foregroundColor(.white.opacity(0.4))
+        }
     }
 }

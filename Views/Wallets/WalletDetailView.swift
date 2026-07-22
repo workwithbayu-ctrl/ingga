@@ -4,119 +4,145 @@ import SwiftData
 struct WalletDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var dataService = DataService.shared
-    
+
     let wallet: Wallet
-    
+
     @State private var pockets: [Pocket] = []
     @State private var transactions: [Transaction] = []
     @State private var showingAddPocket = false
     @State private var showingAddTransaction = false
     @State private var showingTransferBetweenPockets = false
-    
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                walletInfoCard
-                pocketSummaryCard
-                pocketsSection
-                transactionsSection
+        ZStack {
+            // Dark background
+            Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 20) {
+                    walletInfoCard
+                    pocketSummaryCard
+                    pocketsSection
+                    transactionsSection
+                }
+                .padding()
             }
-            .padding()
         }
         .navigationTitle(wallet.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: { showingAddPocket = true }) {
                         Label("Add Pocket", systemImage: "folder.badge.plus")
+                            .foregroundColor(.white)
                     }
                     Button(action: { showingAddTransaction = true }) {
                         Label("Add Transaction", systemImage: "plus.circle")
+                            .foregroundColor(.white)
                     }
                     Button(action: { showingTransferBetweenPockets = true }) {
                         Label("Transfer Between Pockets", systemImage: "arrow.left.arrow.right")
+                            .foregroundColor(.white)
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                        .foregroundColor(.white)
                 }
             }
         }
         .sheet(isPresented: $showingAddPocket) {
-            AddPocketView(wallet: wallet)
+            AddPocketView()
         }
         .sheet(isPresented: $showingAddTransaction) {
-            AddTransactionView(wallet: wallet)
+            AddTransactionView()
         }
         .sheet(isPresented: $showingTransferBetweenPockets) {
             Text("Transfer Between Pockets")
                 .font(.title)
+                .foregroundColor(.white)
         }
         .onAppear {
             loadData()
         }
     }
-    
+
     private var walletInfoCard: some View {
         VStack(spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Wallet Balance")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(.white.opacity(0.6))
+
                     Text(formattedCurrency(wallet.balance))
                         .font(.title)
                         .fontWeight(.bold)
+                        .foregroundColor(.white)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: walletIcon)
                     .font(.system(size: 40))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color(hex: "64B4FF") ?? .blue)
             }
-            
+
             Divider()
-            
+                .background(Color.white.opacity(0.1))
+
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Total in Pockets")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(.white.opacity(0.6))
+
                     let pocketTotal = dataService.totalPocketBalance(for: wallet.id)
                     Text(formattedCurrency(pocketTotal))
                         .font(.headline)
                         .foregroundColor(.green)
                 }
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Available")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(.white.opacity(0.6))
+
                     let pocketTotal = dataService.totalPocketBalance(for: wallet.id)
                     let available = wallet.balance - pocketTotal
                     Text(formattedCurrency(available))
                         .font(.headline)
-                        .foregroundColor(available >= 0 ? .primary : .red)
+                        .foregroundColor(available >= 0 ? .white : .red)
                 }
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "2C5282") ?? Color.blue,
+                    Color(hex: "0B1220") ?? Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(28)
+        .overlay(
+            RoundedRectangle(cornerRadius: 28)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
     }
-    
+
     private var pocketSummaryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Pockets Overview")
                 .font(.headline)
-            
+                .foregroundColor(.white)
+
             HStack(spacing: 16) {
                 StatCard(
                     title: "Total Pockets",
@@ -124,7 +150,7 @@ struct WalletDetailView: View {
                     icon: "folder.fill",
                     color: .blue
                 )
-                
+
                 StatCard(
                     title: "Pocket Balance",
                     value: formattedCurrency(dataService.totalPocketBalance(for: wallet.id)),
@@ -134,25 +160,39 @@ struct WalletDetailView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "2C5282") ?? Color.blue,
+                    Color(hex: "0B1220") ?? Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(28)
+        .overlay(
+            RoundedRectangle(cornerRadius: 28)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
     }
-    
+
     private var pocketsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Pockets")
                     .font(.headline)
-                
+                    .foregroundColor(.white)
+
                 Spacer()
-                
+
                 Button(action: { showingAddPocket = true }) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color(hex: "64B4FF") ?? .blue)
                 }
             }
-            
+
             if pockets.isEmpty {
                 emptyStateView(
                     icon: "folder",
@@ -168,25 +208,39 @@ struct WalletDetailView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "2C5282") ?? Color.blue,
+                    Color(hex: "0B1220") ?? Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(28)
+        .overlay(
+            RoundedRectangle(cornerRadius: 28)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
     }
-    
+
     private var transactionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Recent Transactions")
                     .font(.headline)
-                
+                    .foregroundColor(.white)
+
                 Spacer()
-                
+
                 Button(action: { showingAddTransaction = true }) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color(hex: "64B4FF") ?? .blue)
                 }
             }
-            
+
             if transactions.isEmpty {
                 emptyStateView(
                     icon: "list.bullet.rectangle",
@@ -202,30 +256,43 @@ struct WalletDetailView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "2C5282") ?? Color.blue,
+                    Color(hex: "0B1220") ?? Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(28)
+        .overlay(
+            RoundedRectangle(cornerRadius: 28)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
     }
-    
+
     private func emptyStateView(icon: String, title: String, message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 50))
-                .foregroundColor(.secondary.opacity(0.5))
-            
+                .foregroundColor(.white.opacity(0.3))
+
             Text(title)
                 .font(.headline)
-                .foregroundColor(.secondary)
-            
+                .foregroundColor(.white.opacity(0.7))
+
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(.secondary.opacity(0.7))
+                .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
     }
-    
+
     private var walletIcon: String {
         switch wallet.type.lowercased() {
         case "cash": return "banknote.fill"
@@ -235,12 +302,12 @@ struct WalletDetailView: View {
         default: return "wallet.bifold.fill"
         }
     }
-    
+
     private func loadData() {
         pockets = dataService.fetchPockets(for: wallet.id)
         transactions = dataService.fetchTransactions().filter { $0.wallet?.id == wallet.id }
     }
-    
+
     private func formattedCurrency(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -255,72 +322,82 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(color)
-            
+
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
-            
+                .foregroundColor(.white)
+
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(color.opacity(0.1))
-        .cornerRadius(12)
+        .background(color.opacity(0.15))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
 struct PocketRowView: View {
     let pocket: Pocket
-    
+
     var body: some View {
         HStack {
             ZStack {
                 Circle()
                     .fill(pocketColor.opacity(0.15))
                     .frame(width: 44, height: 44)
-                
+
                 Image(systemName: pocket.icon)
                     .foregroundColor(pocketColor)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(pocket.name)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                
+                    .foregroundColor(.white)
+
                 Text(formattedCurrency(pocket.balance))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.6))
             }
-            
+
             Spacer()
-            
+
             Text(pocket.formattedProgress)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundColor(.accentColor)
+                .foregroundColor(Color(hex: "64B4FF") ?? .blue)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.accentColor.opacity(0.1))
+                .background(Color(hex: "64B4FF")?.opacity(0.1) ?? Color.blue.opacity(0.1))
                 .cornerRadius(8)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        )
     }
-    
+
     private var pocketColor: Color {
         colorFromHex(pocket.colorHex)
     }
-    
+
     private func formattedCurrency(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -332,30 +409,31 @@ struct PocketRowView: View {
 
 struct TransactionRowView: View {
     let transaction: Transaction
-    
+
     var body: some View {
         HStack {
             ZStack {
                 Circle()
-                    .fill(transactionColor.opacity(0.1))
+                    .fill(transactionColor.opacity(0.15))
                     .frame(width: 40, height: 40)
-                
+
                 Image(systemName: transactionIcon)
                     .foregroundColor(transactionColor)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(transaction.note)
                     .font(.subheadline)
                     .lineLimit(1)
-                
+                    .foregroundColor(.white)
+
                 Text(formattedDate(transaction.date))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.5))
             }
-            
+
             Spacer()
-            
+
             Text(formattedCurrency(transaction.amount))
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -363,15 +441,15 @@ struct TransactionRowView: View {
         }
         .padding(.vertical, 8)
     }
-    
+
     private var transactionColor: Color {
         switch transaction.type {
         case .income: return .green
         case .expense: return .red
-        case .transfer: return .blue
+        case .transfer: return Color(hex: "64B4FF") ?? .blue
         }
     }
-    
+
     private var transactionIcon: String {
         switch transaction.type {
         case .income: return "arrow.down.left"
@@ -379,7 +457,7 @@ struct TransactionRowView: View {
         case .transfer: return "arrow.left.arrow.right"
         }
     }
-    
+
     private func formattedCurrency(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -387,7 +465,7 @@ struct TransactionRowView: View {
         formatter.locale = Locale(identifier: "id_ID")
         return formatter.string(from: NSNumber(value: value)) ?? "Rp 0"
     }
-    
+
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -425,9 +503,9 @@ private func colorFromHex(_ hex: String) -> Color {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Wallet.self, Pocket.self, Transaction.self, configurations: config)
-    
+
     let wallet = Wallet(name: "Main Wallet", type: .cash, balance: 5000000)
-    
+
     NavigationStack {
         WalletDetailView(wallet: wallet)
     }

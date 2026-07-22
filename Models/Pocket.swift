@@ -13,11 +13,15 @@ class Pocket {
     var colorHex: String
     var createdAt: Date
     var isDefault: Bool
+
+    // ⭐ FAMILY SHARING FIELDS
+    var familyCode: String?
+    var firebaseUid: String?
     
     // Relationship to Wallet (optional)
     var walletID: UUID?
     
-    init(name: String, pocketType: PocketType, targetAmount: Double, balance: Double = 0, allocationPercentage: Double, icon: String, colorHex: String, walletID: UUID? = nil, isDefault: Bool = false) {
+    init(name: String, pocketType: PocketType, targetAmount: Double, balance: Double = 0, allocationPercentage: Double, icon: String, colorHex: String, walletID: UUID? = nil, isDefault: Bool = false, familyCode: String? = nil, firebaseUid: String? = nil) {
         self.id = UUID()
         self.name = name
         self.pocketType = pocketType
@@ -29,6 +33,8 @@ class Pocket {
         self.walletID = walletID
         self.isDefault = isDefault
         self.createdAt = Date()
+        self.familyCode = familyCode
+        self.firebaseUid = firebaseUid
     }
     
     var progress: Double {

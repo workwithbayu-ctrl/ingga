@@ -37,7 +37,6 @@
 		53B200B0300B311200A67CDA /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B200AF300B311100A67CDA /* LoginView.swift */; };
 		53B200B2300B312A00A67CDA /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B200B1300B312700A67CDA /* RegisterView.swift */; };
 		53B200B4300B315000A67CDA /* FamilySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B200B3300B313A00A67CDA /* FamilySetupView.swift */; };
-		53B200B6300B381F00A67CDA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 53B200B5300B381F00A67CDA /* GoogleService-Info.plist */; };
 		53B200B8300B3D8D00A67CDA /* DataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B200B7300B3D8D00A67CDA /* DataService.swift */; };
 		53D789F4300E3A6100AFD8CB /* AddTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D789F3300E3A6100AFD8CB /* AddTransactionView.swift */; };
 		53D789F6300E4E5800AFD8CB /* WalletType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D789F5300E4E5800AFD8CB /* WalletType.swift */; };
@@ -55,7 +54,31 @@
 		53DB7DFF300DD49C004CC0AD /* SafeMoney_SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DB7DFE300DD49C004CC0AD /* SafeMoney_SplashScreen.swift */; };
 		53DB7E01300DD513004CC0AD /* FamilyBudgetProApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DB7E00300DD513004CC0AD /* FamilyBudgetProApp.swift */; };
 		53DB7E03300E0BB0004CC0AD /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DB7E02300E0BB0004CC0AD /* ForgotPasswordView.swift */; };
-		53DB7E07300E1830004CC0AD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DB7E06300E1830004CC0AD /* SettingsView.swift */; };
+		53E19696300F7D8900B41186 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 53E19695300F7D8900B41186 /* GoogleSignIn */; };
+		53E19698300F7D8900B41186 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 53E19697300F7D8900B41186 /* GoogleSignInSwift */; };
+		53E1969A300F826F00B41186 /* SyncRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E19699300F826300B41186 /* SyncRecord.swift */; };
+		53E1969C300F828B00B41186 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E1969B300F828600B41186 /* UserProfile.swift */; };
+		53E1969E300F82BC00B41186 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E1969D300F82B300B41186 /* AuthService.swift */; };
+		53E196A0300F82DD00B41186 /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E1969F300F82D400B41186 /* FirebaseSyncService.swift */; };
+		53E196A3300F974000B41186 /* Model+Firestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196A2300F832400B41186 /* Model+Firestore.swift */; };
+		53E196A7300FA64800B41186 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 53E196A6300FA64800B41186 /* GoogleService-Info.plist */; };
+		53E196B4300FE87500B41186 /* SmartSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196B1300FE87500B41186 /* SmartSyncService.swift */; };
+		53E196B5300FE87500B41186 /* RootViewRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196B0300FE87500B41186 /* RootViewRouter.swift */; };
+		53E196BB300FF57D00B41186 /* FamilyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196B9300FF57D00B41186 /* FamilyService.swift */; };
+		53E196C1300FF69200B41186 /* FamilyGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196BE300FF69200B41186 /* FamilyGroup.swift */; };
+		53E196C2300FF69200B41186 /* FamilyMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196BF300FF69200B41186 /* FamilyMember.swift */; };
+		53E196C3300FF69200B41186 /* FamilyRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196C0300FF69200B41186 /* FamilyRole.swift */; };
+		53E196C5300FF6A500B41186 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196C4300FF6A500B41186 /* SettingsView.swift */; };
+		53E196C9300FF74400B41186 /* FamilySharingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E196C8300FF74400B41186 /* FamilySharingView.swift */; };
+		53E4D7CE300E905300402A4D /* AddCategoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7CD300E904900402A4D /* AddCategoryView.swift */; };
+		53E4D7D0300E927F00402A4D /* CategoryFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7CF300E927C00402A4D /* CategoryFormView.swift */; };
+		53E4D7D3300F1AE600402A4D /* CategoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D2300F1AD000402A4D /* CategoryManagementView.swift */; };
+		53E4D7DA300F3F4700402A4D /* LogoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D5300F3F4700402A4D /* LogoutView.swift */; };
+		53E4D7DB300F3F4700402A4D /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D4300F3F4700402A4D /* HelpView.swift */; };
+		53E4D7DC300F3F4700402A4D /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D6300F3F4700402A4D /* NotificationSettingsView.swift */; };
+		53E4D7DD300F3F4700402A4D /* ThemeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D9300F3F4700402A4D /* ThemeView.swift */; };
+		53E4D7DE300F3F4700402A4D /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D7300F3F4700402A4D /* ProfileView.swift */; };
+		53E4D7DF300F3F4700402A4D /* SecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E4D7D8300F3F4700402A4D /* SecurityView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,7 +130,6 @@
 		53B200AF300B311100A67CDA /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		53B200B1300B312700A67CDA /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		53B200B3300B313A00A67CDA /* FamilySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilySetupView.swift; sourceTree = "<group>"; };
-		53B200B5300B381F00A67CDA /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		53B200B7300B3D8D00A67CDA /* DataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataService.swift; sourceTree = "<group>"; };
 		53D789F3300E3A6100AFD8CB /* AddTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTransactionView.swift; sourceTree = "<group>"; };
 		53D789F5300E4E5800AFD8CB /* WalletType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletType.swift; sourceTree = "<group>"; };
@@ -125,7 +147,31 @@
 		53DB7DFE300DD49C004CC0AD /* SafeMoney_SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeMoney_SplashScreen.swift; sourceTree = "<group>"; };
 		53DB7E00300DD513004CC0AD /* FamilyBudgetProApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyBudgetProApp.swift; sourceTree = "<group>"; };
 		53DB7E02300E0BB0004CC0AD /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
-		53DB7E06300E1830004CC0AD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		53E19699300F826300B41186 /* SyncRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRecord.swift; sourceTree = "<group>"; };
+		53E1969B300F828600B41186 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		53E1969D300F82B300B41186 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		53E1969F300F82D400B41186 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
+		53E196A2300F832400B41186 /* Model+Firestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Model+Firestore.swift"; sourceTree = "<group>"; };
+		53E196A4300F9ED500B41186 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		53E196A6300FA64800B41186 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		53E196A8300FB4A900B41186 /* FamilyBudgetPro-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FamilyBudgetPro-Info.plist"; sourceTree = "<group>"; };
+		53E196B0300FE87500B41186 /* RootViewRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewRouter.swift; sourceTree = "<group>"; };
+		53E196B1300FE87500B41186 /* SmartSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartSyncService.swift; sourceTree = "<group>"; };
+		53E196B9300FF57D00B41186 /* FamilyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyService.swift; sourceTree = "<group>"; };
+		53E196BE300FF69200B41186 /* FamilyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyGroup.swift; sourceTree = "<group>"; };
+		53E196BF300FF69200B41186 /* FamilyMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMember.swift; sourceTree = "<group>"; };
+		53E196C0300FF69200B41186 /* FamilyRole.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyRole.swift; sourceTree = "<group>"; };
+		53E196C4300FF6A500B41186 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		53E196C8300FF74400B41186 /* FamilySharingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilySharingView.swift; sourceTree = "<group>"; };
+		53E4D7CD300E904900402A4D /* AddCategoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCategoryView.swift; sourceTree = "<group>"; };
+		53E4D7CF300E927C00402A4D /* CategoryFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryFormView.swift; sourceTree = "<group>"; };
+		53E4D7D2300F1AD000402A4D /* CategoryManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementView.swift; sourceTree = "<group>"; };
+		53E4D7D4300F3F4700402A4D /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
+		53E4D7D5300F3F4700402A4D /* LogoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoutView.swift; sourceTree = "<group>"; };
+		53E4D7D6300F3F4700402A4D /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
+		53E4D7D7300F3F4700402A4D /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		53E4D7D8300F3F4700402A4D /* SecurityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityView.swift; sourceTree = "<group>"; };
+		53E4D7D9300F3F4700402A4D /* ThemeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +181,8 @@
 			files = (
 				53B200A6300B2F0A00A67CDA /* FirebaseAuth in Frameworks */,
 				53B200A8300B2F0A00A67CDA /* FirebaseFirestore in Frameworks */,
+				53E19696300F7D8900B41186 /* GoogleSignIn in Frameworks */,
+				53E19698300F7D8900B41186 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,6 +206,9 @@
 		536E8F6C300ABC9E00DECE55 = {
 			isa = PBXGroup;
 			children = (
+				53E196A8300FB4A900B41186 /* FamilyBudgetPro-Info.plist */,
+				53E196A4300F9ED500B41186 /* Info.plist */,
+				53E196A1300F831600B41186 /* Extensions */,
 				53DB7DF2300D150C004CC0AD /* Helpers */,
 				536E8FE1300ABCD100DECE55 /* App */,
 				536E8FA7300ABCC200DECE55 /* Models */,
@@ -165,7 +216,7 @@
 				536E8FAE300ABCC200DECE55 /* Utils */,
 				536E8FC6300ABCC200DECE55 /* Views */,
 				536E8F76300ABC9E00DECE55 /* Products */,
-				53B200B5300B381F00A67CDA /* GoogleService-Info.plist */,
+				53E196A6300FA64800B41186 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -182,6 +233,8 @@
 		536E8FA7300ABCC200DECE55 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				53E1969B300F828600B41186 /* UserProfile.swift */,
+				53E19699300F826300B41186 /* SyncRecord.swift */,
 				536E8FA1300ABCC200DECE55 /* Category.swift */,
 				536E8FA2300ABCC200DECE55 /* Pocket.swift */,
 				536E8FA3300ABCC200DECE55 /* PocketTransaction.swift */,
@@ -196,6 +249,8 @@
 		536E8FA9300ABCC200DECE55 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				53E1969F300F82D400B41186 /* FirebaseSyncService.swift */,
+				53E1969D300F82B300B41186 /* AuthService.swift */,
 				53B200AD300B30E600A67CDA /* FirebaseDataService.swift */,
 				53B200AB300B30C100A67CDA /* FirebaseAuthService.swift */,
 				53B200B7300B3D8D00A67CDA /* DataService.swift */,
@@ -236,6 +291,8 @@
 		536E8FB5300ABCC200DECE55 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				53E4D7CF300E927C00402A4D /* CategoryFormView.swift */,
+				53E4D7CD300E904900402A4D /* AddCategoryView.swift */,
 				53DB7DEC300CB385004CC0AD /* BalanceCardView.swift */,
 				53A8BE9F300BE05600E0E421 /* HelperViews.swift */,
 				536E8FB1300ABCC200DECE55 /* AllTransactionsView.swift */,
@@ -298,6 +355,8 @@
 		536E8FC6300ABCC200DECE55 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				53E196A9300FC81C00B41186 /* Family */,
+				53E4D7D1300F1AC300402A4D /* Categories */,
 				53DB7E04300E180E004CC0AD /* Setting */,
 				53DB7DFD300DD43D004CC0AD /* Splash */,
 				53DB7DE5300C87DE004CC0AD /* Theme */,
@@ -350,9 +409,45 @@
 		53DB7E04300E180E004CC0AD /* Setting */ = {
 			isa = PBXGroup;
 			children = (
-				53DB7E06300E1830004CC0AD /* SettingsView.swift */,
+				53E196C4300FF6A500B41186 /* SettingsView.swift */,
 			);
 			path = Setting;
+			sourceTree = "<group>";
+		};
+		53E196A1300F831600B41186 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				53E196A2300F832400B41186 /* Model+Firestore.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		53E196A9300FC81C00B41186 /* Family */ = {
+			isa = PBXGroup;
+			children = (
+				53E196B0300FE87500B41186 /* RootViewRouter.swift */,
+				53E196B1300FE87500B41186 /* SmartSyncService.swift */,
+				53E196B9300FF57D00B41186 /* FamilyService.swift */,
+				53E196BE300FF69200B41186 /* FamilyGroup.swift */,
+				53E196BF300FF69200B41186 /* FamilyMember.swift */,
+				53E196C0300FF69200B41186 /* FamilyRole.swift */,
+				53E196C8300FF74400B41186 /* FamilySharingView.swift */,
+			);
+			path = Family;
+			sourceTree = "<group>";
+		};
+		53E4D7D1300F1AC300402A4D /* Categories */ = {
+			isa = PBXGroup;
+			children = (
+				53E4D7D4300F3F4700402A4D /* HelpView.swift */,
+				53E4D7D5300F3F4700402A4D /* LogoutView.swift */,
+				53E4D7D6300F3F4700402A4D /* NotificationSettingsView.swift */,
+				53E4D7D7300F3F4700402A4D /* ProfileView.swift */,
+				53E4D7D8300F3F4700402A4D /* SecurityView.swift */,
+				53E4D7D9300F3F4700402A4D /* ThemeView.swift */,
+				53E4D7D2300F1AD000402A4D /* CategoryManagementView.swift */,
+			);
+			path = Categories;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -374,6 +469,8 @@
 			packageProductDependencies = (
 				53B200A5300B2F0A00A67CDA /* FirebaseAuth */,
 				53B200A7300B2F0A00A67CDA /* FirebaseFirestore */,
+				53E19695300F7D8900B41186 /* GoogleSignIn */,
+				53E19697300F7D8900B41186 /* GoogleSignInSwift */,
 			);
 			productName = FamilyBudgetPro;
 			productReference = 536E8F75300ABC9E00DECE55 /* FamilyBudgetPro.app */;
@@ -453,6 +550,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				53B200A4300B2F0A00A67CDA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				53E19694300F7D8900B41186 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 536E8F76300ABC9E00DECE55 /* Products */;
@@ -471,7 +569,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				53B200B6300B381F00A67CDA /* GoogleService-Info.plist in Resources */,
+				53E196A7300FA64800B41186 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -496,7 +594,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				53E196A0300F82DD00B41186 /* FirebaseSyncService.swift in Sources */,
 				536E8FC7300ABCC200DECE55 /* Date+Helpers.swift in Sources */,
+				53E196BB300FF57D00B41186 /* FamilyService.swift in Sources */,
 				53D789F4300E3A6100AFD8CB /* AddTransactionView.swift in Sources */,
 				536E8FC8300ABCC200DECE55 /* PocketDepositView.swift in Sources */,
 				536E8FE5300ABF9A00DECE55 /* ContentView.swift in Sources */,
@@ -507,14 +607,27 @@
 				536E8FCB300ABCC200DECE55 /* WalletCardView.swift in Sources */,
 				53DB7DFF300DD49C004CC0AD /* SafeMoney_SplashScreen.swift in Sources */,
 				536E8FCC300ABCC200DECE55 /* PocketTransferView.swift in Sources */,
+				53E1969E300F82BC00B41186 /* AuthService.swift in Sources */,
 				536E8FCD300ABCC200DECE55 /* WalletListView.swift in Sources */,
 				536E8FCE300ABCC200DECE55 /* PocketListView.swift in Sources */,
+				53E4D7DA300F3F4700402A4D /* LogoutView.swift in Sources */,
+				53E1969C300F828B00B41186 /* UserProfile.swift in Sources */,
+				53E196C5300FF6A500B41186 /* SettingsView.swift in Sources */,
+				53E4D7DB300F3F4700402A4D /* HelpView.swift in Sources */,
+				53E4D7DC300F3F4700402A4D /* NotificationSettingsView.swift in Sources */,
+				53E4D7DD300F3F4700402A4D /* ThemeView.swift in Sources */,
+				53E4D7DE300F3F4700402A4D /* ProfileView.swift in Sources */,
+				53E4D7DF300F3F4700402A4D /* SecurityView.swift in Sources */,
 				53A8BEA0300BE05E00E0E421 /* HelperViews.swift in Sources */,
-				53DB7E07300E1830004CC0AD /* SettingsView.swift in Sources */,
 				536E8FD0300ABCC200DECE55 /* AllTransactionsView.swift in Sources */,
 				53DB7DEF300CC8A8004CC0AD /* AddWalletView.swift in Sources */,
 				53DB7DE9300C87EA004CC0AD /* ThemeMainTabView.swift in Sources */,
+				53E196C9300FF74400B41186 /* FamilySharingView.swift in Sources */,
+				53E4D7CE300E905300402A4D /* AddCategoryView.swift in Sources */,
 				53DB7DEA300C87EA004CC0AD /* ThemeSystem.swift in Sources */,
+				53E196C1300FF69200B41186 /* FamilyGroup.swift in Sources */,
+				53E196C2300FF69200B41186 /* FamilyMember.swift in Sources */,
+				53E196C3300FF69200B41186 /* FamilyRole.swift in Sources */,
 				53DB7DEB300C87EA004CC0AD /* ThemeDashboardView.swift in Sources */,
 				53DB7DFC300DB259004CC0AD /* DashboardView.swift in Sources */,
 				53B200B2300B312A00A67CDA /* RegisterView.swift in Sources */,
@@ -529,19 +642,25 @@
 				53B200B4300B315000A67CDA /* FamilySetupView.swift in Sources */,
 				536E8FD9300ABCC200DECE55 /* TransactionRow.swift in Sources */,
 				536E8FDA300ABCC200DECE55 /* Transaction.swift in Sources */,
+				53E196B4300FE87500B41186 /* SmartSyncService.swift in Sources */,
+				53E196B5300FE87500B41186 /* RootViewRouter.swift in Sources */,
 				53DB7DFA300DB049004CC0AD /* AddExpenseView.swift in Sources */,
 				53D789F6300E4E5800AFD8CB /* WalletType.swift in Sources */,
 				53B200B0300B311200A67CDA /* LoginView.swift in Sources */,
 				536E8FDB300ABCC200DECE55 /* Category.swift in Sources */,
+				53E196A3300F974000B41186 /* Model+Firestore.swift in Sources */,
 				536E8FDC300ABCC200DECE55 /* Wallet.swift in Sources */,
 				53B200AC300B30C900A67CDA /* FirebaseAuthService.swift in Sources */,
 				536E8FDD300ABCC200DECE55 /* AddPocketView.swift in Sources */,
 				53B200AE300B30EB00A67CDA /* FirebaseDataService.swift in Sources */,
+				53E4D7D3300F1AE600402A4D /* CategoryManagementView.swift in Sources */,
 				53DB7DF4300D1585004CC0AD /* PocketAllocationHelper.swift in Sources */,
 				536E8FDF300ABCC200DECE55 /* PocketDetailView.swift in Sources */,
 				536E8FE0300ABCC200DECE55 /* PocketTransaction.swift in Sources */,
 				53B200B8300B3D8D00A67CDA /* DataService.swift in Sources */,
+				53E4D7D0300E927F00402A4D /* CategoryFormView.swift in Sources */,
 				53DB7DED300CB388004CC0AD /* BalanceCardView.swift in Sources */,
+				53E1969A300F826F00B41186 /* SyncRecord.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -707,17 +826,19 @@
 				DEVELOPMENT_TEAM = JN8PKKJZ93;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FamilyBudgetPro-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetPro;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -741,17 +862,19 @@
 				DEVELOPMENT_TEAM = JN8PKKJZ93;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FamilyBudgetPro-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetPro;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -775,7 +898,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetProTests;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -799,7 +922,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetProTests;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -821,7 +944,7 @@
 				DEVELOPMENT_TEAM = JN8PKKJZ93;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetProUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -843,7 +966,7 @@
 				DEVELOPMENT_TEAM = JN8PKKJZ93;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetProUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = gx66.FamilyBudgetUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -906,6 +1029,14 @@
 				minimumVersion = 12.16.0;
 			};
 		};
+		53E19694300F7D8900B41186 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -918,6 +1049,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 53B200A4300B2F0A00A67CDA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		53E19695300F7D8900B41186 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 53E19694300F7D8900B41186 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		53E19697300F7D8900B41186 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 53E19694300F7D8900B41186 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

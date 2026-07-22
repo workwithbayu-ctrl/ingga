@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>966552110580-dl8r171c1t9o7usevopsd2hqvppoj4ql.apps.googleusercontent.com</string>
+	<string>966552110580-396lfo6d5eeu3cgjht1qog1hf70ifq3q.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.966552110580-dl8r171c1t9o7usevopsd2hqvppoj4ql</string>
+	<string>com.googleusercontent.apps.966552110580-396lfo6d5eeu3cgjht1qog1hf70ifq3q</string>
 	<key>API_KEY</key>
 	<string>AIzaSyCTIVdOpUPrO8H_dsCL0IFnLNomdEUwFIY</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>gx66.FamilyBudgetPro</string>
+	<string>gx66.FamilyBudget</string>
 	<key>PROJECT_ID</key>
 	<string>familybudgetpro-4b789</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:966552110580:ios:054bd18596d16cced465a1</string>
+	<string>1:966552110580:ios:b2398a6a2e147a61d465a1</string>
 </dict>
 </plist>

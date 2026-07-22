@@ -1,149 +1,216 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Wallet Type Button (Custom segmented control)
+struct WalletTypeButton: View {
+    let type: WalletType
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: type.icon)
+                    .font(.system(size: 20))
+
+                Text(type.displayName)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundColor(isSelected ? .white : .white.opacity(0.5))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color(hex: "64B4FF")!.opacity(0.25) : Color.white.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color(hex: "64B4FF")! : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct AddWalletView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name = ""
-    @State private var selectedIcon = "💳"
-    @State private var selectedType: WalletType = .cash
+    @State private var selectedBank: IndonesianBank = .bca
+    @State private var customName = ""
+    @State private var accountNumber = ""
+    @State private var selectedType: WalletType = .bank
     @State private var initialBalance = ""
-    @State private var colorHex = "#1a1a2e"
     @State private var accountHolder = ""
 
-    let icons = ["💳", "🏦", "💰", "💵", "💶", "💷", "💴", "🪙", "📱", "🧧"]
-    let colors = ["#1a1a2e", "#16213e", "#0f3460", "#533483", "#e94560", "#16c79a", "#ef476f", "#ffd166", "#118ab2", "#073b4c"]
+    // Filtered banks based on type
+    private var filteredBanks: [IndonesianBank] {
+        switch selectedType {
+        case .bank:
+            return IndonesianBank.conventionalBanks
+        case .digitalBank:
+            return IndonesianBank.digitalBanks
+        case .cash:
+            return [.cash]
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                // Name Section
-                Section("Nama Rekening") {
-                    TextField("Contoh: Dompet Utama", text: $name)
-                }
+            ZStack {
+                Color(hex: "0B1220")!
+                    .ignoresSafeArea()
 
-                // Account Holder
-                Section("Pemilik Rekening") {
-                    TextField("Nama pemilik", text: $accountHolder)
-                }
-
-                // Icon Section
-                Section("Icon") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(icons, id: \.self) { icon in
-                            Button(action: {
-                                selectedIcon = icon
-                            }) {
-                                Text(icon)
-                                    .font(.system(size: 28))
-                                    .frame(width: 44, height: 44)
-                                    .background(
-                                        selectedIcon == icon ?
-                                        Color.blue.opacity(0.2) :
-                                        Color.clear
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(
-                                                selectedIcon == icon ?
-                                                Color.blue :
-                                                Color.gray.opacity(0.3),
-                                                lineWidth: selectedIcon == icon ? 2 : 1
-                                            )
-                                    )
+                Form {
+                    // Wallet Type - Custom buttons (more responsive than Picker segmented)
+                    Section {
+                        HStack(spacing: 8) {
+                            ForEach(WalletType.allCases, id: \.self) { type in
+                                WalletTypeButton(
+                                    type: type,
+                                    isSelected: selectedType == type
+                                ) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedType = type
+                                        // Reset selectedBank to valid option for new type
+                                        switch type {
+                                        case .bank:
+                                            selectedBank = .bca
+                                        case .digitalBank:
+                                            selectedBank = .jago
+                                        case .cash:
+                                            selectedBank = .cash
+                                        }
+                                    }
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.vertical, 4)
+                        .listRowBackground(Color.white.opacity(0.05))
+                    } header: {
+                        Text("Tipe Dompet")
+                            .foregroundColor(.gray)
                     }
-                    .padding(.vertical, 4)
-                }
 
-                // Color Section
-                Section("Warna") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(colors, id: \.self) { color in
-                            Button(action: {
-                                colorHex = color
-                            }) {
-                                Circle()
-                                    .fill(Color(hex: color) ?? Color.gray)
-                                    .frame(width: 36, height: 36)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                colorHex == color ?
-                                                Color.white :
-                                                Color.clear,
-                                                lineWidth: 3
-                                            )
-                                    )
+                    // Bank Selection
+                    Section {
+                        Picker("Bank", selection: $selectedBank) {
+                            ForEach(filteredBanks, id: \.self) { bank in
+                                Text(bank.name).tag(bank)
                             }
-                            .buttonStyle(.plain)
+                        }
+                        .pickerStyle(.navigationLink)
+                        .foregroundColor(.white)
+                        .listRowBackground(Color.white.opacity(0.05))
+                    } header: {
+                        Text("Pilih Bank")
+                            .foregroundColor(.gray)
+                    }
+
+                    // Custom Name
+                    Section {
+                        TextField("Nama Rekening (opsional)", text: $customName)
+                            .foregroundColor(.white)
+                            .listRowBackground(Color.white.opacity(0.05))
+                    } header: {
+                        Text("Nama Rekening")
+                            .foregroundColor(.gray)
+                    } footer: {
+                        Text("Contoh: BCA Gaji, Dompet Harian")
+                            .foregroundColor(.gray.opacity(0.7))
+                    }
+
+                    // Account Holder
+                    if selectedType != .cash {
+                        Section {
+                            TextField("Nama Pemilik Rekening", text: $accountHolder)
+                                .foregroundColor(.white)
+                                .listRowBackground(Color.white.opacity(0.05))
+                        } header: {
+                            Text("Nama Pemilik")
+                                .foregroundColor(.gray)
                         }
                     }
-                    .padding(.vertical, 4)
-                }
 
-                // Type Section
-                Section("Tipe") {
-                    Picker("Tipe", selection: $selectedType) {
-                        ForEach(WalletType.allCases, id: \.self) { type in
-                            Text(type.rawValue).tag(type)
+                    // Account Number
+                    if selectedType != .cash {
+                        Section {
+                            TextField("Nomor Rekening", text: $accountNumber)
+                                .keyboardType(.numberPad)
+                                .foregroundColor(.white)
+                                .listRowBackground(Color.white.opacity(0.05))
+                        } header: {
+                            Text("Nomor Rekening")
+                                .foregroundColor(.gray)
                         }
                     }
-                    .pickerStyle(.segmented)
-                }
 
-                // Initial Balance Section
-                Section("Saldo Awal") {
-                    HStack {
-                        Text("Rp")
-                            .foregroundStyle(.secondary)
-                        TextField("0", text: $initialBalance)
-                            .keyboardType(.numberPad)
+                    // Initial Balance
+                    Section {
+                        TextField("Saldo Awal", text: $initialBalance)
+                            .keyboardType(.decimalPad)
+                            .foregroundColor(.white)
+                            .listRowBackground(Color.white.opacity(0.05))
+                    } header: {
+                        Text("Saldo Awal")
+                            .foregroundColor(.gray)
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Tambah Rekening")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Batal") {
-                        dismiss()
-                    }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Batal") { dismiss() }
+                        .foregroundColor(.white)
                 }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Simpan") {
                         saveWallet()
                     }
-                    .disabled(name.isEmpty)
+                    .foregroundColor(Color(hex: "64B4FF")!)
                 }
             }
         }
     }
 
     private func saveWallet() {
-        let balance = Double(initialBalance.replacingOccurrences(of: ".", with: "")) ?? 0
+        let maxSort = (try? modelContext.fetch(FetchDescriptor<Wallet>()).map(\.sortOrder).max()) ?? 0
+
+        let name = customName.isEmpty ? selectedBank.name : customName
+        let balance = Double(initialBalance) ?? 0
 
         let wallet = Wallet(
             name: name,
             type: selectedType,
+            bankCode: selectedBank.code,
+            accountNumber: accountNumber.isEmpty ? nil : accountNumber,
             balance: balance,
-            icon: selectedIcon,
-            colorHex: colorHex,
-            accountHolder: accountHolder.isEmpty ? name : accountHolder
+            icon: selectedType.icon,
+            colorHex: walletColor(for: selectedBank),
+            accountHolder: accountHolder.isEmpty ? nil : accountHolder,
+            sortOrder: maxSort + 1
         )
 
         modelContext.insert(wallet)
+        try? modelContext.save()
+        dismiss()
+    }
 
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
-            print("Error saving wallet: \(error)")
+    private func walletColor(for bank: IndonesianBank) -> String {
+        switch bank {
+        case .bca, .bcaSyariah, .blu: return "0060AF"
+        case .mandiri, .mandiriSyariah, .livin: return "003D79"
+        case .bni, .bniSyariah: return "F15A23"
+        case .bri: return "00529C"
+        case .btn: return "ED1C24"
+        case .bsi: return "00A651"
+        case .jago: return "FF6B35"
+        case .seabank: return "003B5C"
+        case .cash: return "00D26A"
+        default: return "4D96FF"
         }
     }
 }

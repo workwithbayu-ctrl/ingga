@@ -3,10 +3,6 @@ import SwiftData
 
 struct PocketDepositView: View {
     @Environment(\.dismiss) private var dismiss
-    // FIX: DataService is @Observable, not ObservableObject
-    // Use EnvironmentObject or direct access
-    @EnvironmentObject private var dataService: DataService
-
     let pocket: Pocket
 
     @State private var amount: String = ""
@@ -15,7 +11,7 @@ struct PocketDepositView: View {
     @State private var selectedDate: Date = Date()
 
     var wallets: [Wallet] {
-        dataService.fetchWallets()
+        DataService.shared.fetchWallets()
     }
 
     var isValid: Bool {
@@ -25,71 +21,97 @@ struct PocketDepositView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Jumlah Setor")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            ZStack {
+                // Dark background
+                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
 
-                        HStack {
-                            Text("Rp")
-                                .font(.title)
-                                .foregroundStyle(.secondary)
-
-                            TextField("0", text: $amount)
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                        }
-                        .foregroundStyle(Color.incomeGreen)
-
-                        if let wallet = selectedWallet {
-                            Text("Saldo \(wallet.name): \(wallet.balance.formattedCurrency())")
+                Form {
+                    // MARK: - Amount Section
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Jumlah Setor")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
+                                .foregroundColor(.white.opacity(0.6))
 
-                Section("Dari Dompet") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(wallets) { wallet in
-                                DepositWalletButton(
-                                    wallet: wallet,
-                                    isSelected: selectedWallet?.id == wallet.id
-                                ) {
-                                    selectedWallet = wallet
-                                }
+                            HStack {
+                                Text("Rp")
+                                    .font(.title)
+                                    .foregroundColor(.white.opacity(0.6))
+
+                                TextField("0", text: $amount)
+                                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .foregroundColor(.green)
+                            }
+
+                            if let wallet = selectedWallet {
+                                Text("Saldo \(wallet.name): \(wallet.balance.formattedCurrency())")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.5))
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                     }
-                }
+                    .listRowBackground(Color.white.opacity(0.05))
 
-                Section("Ke Pocket") {
-                    HStack {
-                        Image(systemName: pocket.icon)
-                            .foregroundStyle(Color(hex: pocket.colorHex) ?? .gray)
-                        Text(pocket.name)
-                        Spacer()
-                        Text(pocket.balance.formattedCurrency())
-                            .fontWeight(.semibold)
+                    // MARK: - Source Wallet
+                    Section("Dari Dompet") {
+                        if wallets.isEmpty {
+                            Text("Belum ada dompet")
+                                .foregroundColor(.white.opacity(0.5))
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(wallets) { wallet in
+                                        DepositWalletButtonDark(
+                                            wallet: wallet,
+                                            isSelected: selectedWallet?.id == wallet.id
+                                        ) {
+                                            selectedWallet = wallet
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
                     }
-                }
+                    .listRowBackground(Color.white.opacity(0.05))
 
-                Section("Detail") {
-                    TextField("Catatan (opsional)", text: $note)
-                    DatePicker("Tanggal", selection: $selectedDate, displayedComponents: [.date])
+                    // MARK: - Destination Pocket
+                    Section("Ke Pocket") {
+                        HStack {
+                            Image(systemName: pocket.icon)
+                                .foregroundStyle(Color(hex: pocket.colorHex) ?? .gray)
+                            Text(pocket.name)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(pocket.balance.formattedCurrency())
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .listRowBackground(Color.white.opacity(0.05))
+
+                    // MARK: - Detail
+                    Section("Detail") {
+                        TextField("Catatan (opsional)", text: $note)
+                            .foregroundColor(.white)
+                        DatePicker("Tanggal", selection: $selectedDate, displayedComponents: [.date])
+                            .colorMultiply(.white)
+                    }
+                    .listRowBackground(Color.white.opacity(0.05))
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Setor ke \(pocket.name)")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color(hex: "0B1220") ?? Color.black, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Batal") { dismiss() }
+                        .foregroundColor(.white)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -98,12 +120,14 @@ struct PocketDepositView: View {
                     }
                     .disabled(!isValid)
                     .fontWeight(.semibold)
+                    .foregroundColor(isValid ? .green : .white.opacity(0.3))
                 }
             }
             .onAppear {
                 selectedWallet = wallets.first
             }
         }
+        .tint(.white)
     }
 
     private func performDeposit() {
@@ -112,7 +136,6 @@ struct PocketDepositView: View {
             return
         }
 
-        // FIX: Use DataService.shared directly since it's @Observable
         DataService.shared.depositToPocket(
             pocket: pocket,
             amount: amountValue,
@@ -125,8 +148,8 @@ struct PocketDepositView: View {
     }
 }
 
-// MARK: - Custom Button
-struct DepositWalletButton: View {
+// MARK: - Deposit Wallet Button Dark
+struct DepositWalletButtonDark: View {
     let wallet: Wallet
     let isSelected: Bool
     let action: () -> Void
@@ -136,12 +159,12 @@ struct DepositWalletButton: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: wallet.colorHex)?.opacity(0.15) ?? Color.gray.opacity(0.15))
+                        .fill(Color(hex: wallet.colorHex)?.opacity(isSelected ? 0.25 : 0.1) ?? Color.gray.opacity(0.1))
                         .frame(width: 56, height: 56)
 
                     Image(systemName: wallet.icon)
                         .font(.title3)
-                        .foregroundStyle(Color(hex: wallet.colorHex) ?? .gray)
+                        .foregroundColor(Color(hex: wallet.colorHex) ?? .gray)
                 }
                 .overlay(
                     Circle()
@@ -150,10 +173,16 @@ struct DepositWalletButton: View {
 
                 Text(wallet.name)
                     .font(.caption)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.5))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .frame(width: 70)
+
+                Text(wallet.balance.formattedCurrency())
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.5))
+                    .frame(width: 80)
             }
         }
         .buttonStyle(.plain)

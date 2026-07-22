@@ -1,16 +1,26 @@
+// SettingsView.swift
+// Views/Setting/SettingsView.swift
+
 import SwiftUI
 import SwiftData
+import FirebaseAuth
+import FirebaseFirestore
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var dataService: DataService
+    @StateObject private var authService = AuthService.shared
+    @StateObject private var familyService = FamilyService.shared
 
     var onLogout: (() -> Void)? = nil
 
     // Profile states
-    @State private var currentUser: User?
+    @State private var currentUserProfile: UserProfile?
     @State private var name: String = ""
     @State private var email: String = ""
+    @State private var photoURL: String? = nil
+    @State private var authProvider: String = ""
 
     // Password change states
     @State private var currentPassword: String = ""
@@ -21,6 +31,7 @@ struct SettingsView: View {
     // Toggle states
     @State private var rememberMe: Bool = true
     @State private var biometricEnabled: Bool = false
+    @State private var autoSync: Bool = true
 
     // UI states
     @State private var showSuccessToast: Bool = false
@@ -29,12 +40,14 @@ struct SettingsView: View {
     @State private var errorMessage: String = ""
     @State private var isLoading: Bool = false
     @State private var showLogoutConfirm: Bool = false
+    @State private var showSyncStatus: Bool = false
+    @State private var lastSyncDate: Date? = nil
 
     var body: some View {
         NavigationStack {
             ZStack {
                 // Background
-                Color(hex: "0B1220")!
+                (Color(hex: "0B1220") ?? Color.black)
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
@@ -42,11 +55,32 @@ struct SettingsView: View {
                         // Profile Header
                         profileHeader
 
-                        // Profile Section
-                        settingsSection(title: "Profile") {
+                        // Account Info Section
+                        settingsSection(title: "Akun") {
                             VStack(spacing: 16) {
-                                CustomSettingsField(icon: "person.fill", title: "Name", text: $name)
+                                CustomSettingsField(icon: "person.fill", title: "Nama", text: $name)
                                 CustomSettingsField(icon: "envelope.fill", title: "Email", text: $email, isEmail: true, isReadOnly: true)
+
+                                // Auth Provider Badge
+                                HStack {
+                                    Image(systemName: authProvider == "google" ? "globe" : "envelope.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                    Text("Login via \(authProvider.capitalized)")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.white.opacity(0.03))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color(hex: "64B4FF") ?? Color.blue.opacity(0.1), lineWidth: 1)
+                                        )
+                                )
 
                                 Button(action: saveProfile) {
                                     HStack {
@@ -55,7 +89,7 @@ struct SettingsView: View {
                                             ProgressView()
                                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         } else {
-                                            Text("Save Profile")
+                                            Text("Simpan Perubahan")
                                                 .font(.system(size: 15, weight: .semibold))
                                                 .foregroundColor(.white)
                                         }
@@ -66,7 +100,7 @@ struct SettingsView: View {
                                         RoundedRectangle(cornerRadius: 12)
                                             .fill(
                                                 LinearGradient(
-                                                    colors: [Color(hex: "64B4FF")!, Color(hex: "3C8CDC")!],
+                                                    colors: [Color(hex: "64B4FF") ?? Color.blue, Color(hex: "3C8CDC") ?? Color.blue],
                                                     startPoint: .leading,
                                                     endPoint: .trailing
                                                 )
@@ -77,126 +111,209 @@ struct SettingsView: View {
                             }
                         }
 
-                        // Security Section
-                        settingsSection(title: "Security") {
+                        // Sync Status Section
+                        settingsSection(title: "Sinkronisasi") {
                             VStack(spacing: 0) {
-                                // Change Password Toggle
-                                Button(action: { withAnimation { showPasswordSection.toggle() } }) {
-                                    HStack {
-                                        Image(systemName: "lock.shield")
-                                            .font(.system(size: 18))
-                                            .foregroundColor(Color(hex: "64B4FF")!)
-                                            .frame(width: 28)
-
-                                        Text("Change Password")
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundColor(.white)
-
-                                        Spacer()
-
-                                        Image(systemName: showPasswordSection ? "chevron.up" : "chevron.down")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(Color(hex: "8B9BB4")!)
+                                // Auto Sync Toggle
+                                ToggleRow(
+                                    icon: "arrow.triangle.2.circlepath",
+                                    title: "Auto Sync",
+                                    subtitle: "Sinkron otomatis ke cloud",
+                                    isOn: $autoSync
+                                )
+                                .onChange(of: autoSync) { _, newValue in
+                                    if newValue {
+                                        FirebaseSyncService.shared.startAutoSync(modelContext: modelContext)
+                                        showSuccess("Auto sync diaktifkan")
+                                    } else {
+                                        FirebaseSyncService.shared.stopAutoSync()
+                                        showSuccess("Auto sync dimatikan")
                                     }
-                                    .padding(.vertical, 14)
-                                }
-                                .buttonStyle(.plain)
-
-                                if showPasswordSection {
-                                    VStack(spacing: 12) {
-                                        SecureField("Current Password", text: $currentPassword)
-                                            .font(.system(size: 15))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 14)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(hex: "1A1F3A")!)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 12)
-                                                            .stroke(Color(hex: "64B4FF")!.opacity(0.2), lineWidth: 1)
-                                                    )
-                                            )
-
-                                        SecureField("New Password", text: $newPassword)
-                                            .font(.system(size: 15))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 14)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(hex: "1A1F3A")!)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 12)
-                                                            .stroke(Color(hex: "64B4FF")!.opacity(0.2), lineWidth: 1)
-                                                    )
-                                            )
-
-                                        SecureField("Confirm New Password", text: $confirmNewPassword)
-                                            .font(.system(size: 15))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 14)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(hex: "1A1F3A")!)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 12)
-                                                            .stroke(Color(hex: "64B4FF")!.opacity(0.2), lineWidth: 1)
-                                                    )
-                                            )
-
-                                        Button(action: changePassword) {
-                                            HStack {
-                                                Spacer()
-                                                Text("Update Password")
-                                                    .font(.system(size: 15, weight: .semibold))
-                                                    .foregroundColor(.white)
-                                                Spacer()
-                                            }
-                                            .padding(.vertical, 14)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(hex: "2C5282")!)
-                                            )
-                                        }
-                                        .padding(.top, 4)
-                                    }
-                                    .padding(.top, 8)
                                 }
 
                                 Divider()
                                     .background(Color.white.opacity(0.1))
                                     .padding(.vertical, 8)
 
+                                // Last Sync Info
+                                HStack(spacing: 12) {
+                                    Image(systemName: "clock")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                        .frame(width: 28)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Sync Terakhir")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(.white)
+
+                                        Text(lastSyncDate != nil ? lastSyncDate!.formatted(date: .abbreviated, time: .shortened) : "Belum pernah sync")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                    }
+
+                                    Spacer()
+
+                                    // Firebase connection status
+                                    Circle()
+                                        .fill(Auth.auth().currentUser != nil ? Color.green : Color.orange)
+                                        .frame(width: 8, height: 8)
+                                }
+                                .padding(.vertical, 6)
+
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                    .padding(.vertical, 8)
+
+                                // Manual Sync Button
+                                Button(action: manualSync) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "arrow.up.arrow.down")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+
+                                        Text("Sync Sekarang")
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundColor(.white)
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                    }
+                                    .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+
+                        // Family Sharing Section
+                        settingsSection(title: "Keluarga") {
+                            VStack(spacing: 0) {
+                                NavigationLink(destination: FamilySharingView()) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "person.3.fill")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                            .frame(width: 28)
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Berbagi Keluarga")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundColor(.white)
+
+                                            Text(FamilyService.shared.hasFamily
+                                                ? (FamilyService.shared.currentFamily?.name ?? "Kelola keluarga")
+                                                : "Bagikan data dengan keluarga")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                    }
+                                    .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        // Security Section
+                        settingsSection(title: "Keamanan") {
+                            VStack(spacing: 0) {
+                                // Change Password Toggle (hanya untuk email auth)
+                                if authProvider != "google" {
+                                    Button(action: { withAnimation { showPasswordSection.toggle() } }) {
+                                        HStack {
+                                            Image(systemName: "lock.shield")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                                .frame(width: 28)
+
+                                            Text("Ubah Password")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundColor(.white)
+
+                                            Spacer()
+
+                                            Image(systemName: showPasswordSection ? "chevron.up" : "chevron.down")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                                        }
+                                        .padding(.vertical, 14)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if showPasswordSection {
+                                        VStack(spacing: 12) {
+                                            CustomSecureField(
+                                                placeholder: "Password Saat Ini",
+                                                text: $currentPassword
+                                            )
+
+                                            CustomSecureField(
+                                                placeholder: "Password Baru",
+                                                text: $newPassword
+                                            )
+
+                                            CustomSecureField(
+                                                placeholder: "Konfirmasi Password Baru",
+                                                text: $confirmNewPassword
+                                            )
+
+                                            Button(action: changePassword) {
+                                                HStack {
+                                                    Spacer()
+                                                    Text("Update Password")
+                                                        .font(.system(size: 15, weight: .semibold))
+                                                        .foregroundColor(.white)
+                                                    Spacer()
+                                                }
+                                                .padding(.vertical, 14)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color(hex: "2C5282") ?? Color.blue)
+                                                )
+                                            }
+                                            .padding(.top, 4)
+                                        }
+                                        .padding(.top, 8)
+                                    }
+
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                        .padding(.vertical, 8)
+                                }
+
                                 // Remember Me Toggle
                                 ToggleRow(
                                     icon: "checkmark.shield",
-                                    title: "Remember Me",
-                                    subtitle: "Stay logged in",
+                                    title: "Ingat Saya",
+                                    subtitle: "Tetap login setelah keluar",
                                     isOn: $rememberMe
                                 )
                                 .onChange(of: rememberMe) { _, newValue in
                                     UserDefaults.standard.set(newValue, forKey: "rememberMe")
                                     UserDefaults.standard.synchronize()
-                                    showSuccess("Remember Me \(newValue ? "enabled" : "disabled")")
+                                    showSuccess("Remember Me \(newValue ? "diaktifkan" : "dimatikan")")
                                 }
-
-                                // Biometric Toggle - disabled (requires NSFaceIDUsageDescription in Info.plist)
-                                // Uncomment after adding NSFaceIDUsageDescription to Info.plist
                             }
                         }
 
                         // About Section
-                        settingsSection(title: "About") {
+                        settingsSection(title: "Tentang") {
                             VStack(spacing: 16) {
                                 HStack {
                                     Image(systemName: "info.circle")
                                         .font(.system(size: 18))
-                                        .foregroundColor(Color(hex: "64B4FF")!)
+                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
                                         .frame(width: 28)
 
-                                    Text("Version")
+                                    Text("Versi")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(.white)
 
@@ -204,16 +321,16 @@ struct SettingsView: View {
 
                                     Text("1.0.0")
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color(hex: "8B9BB4")!)
+                                        .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
                                 }
 
                                 HStack {
                                     Image(systemName: "shield.checkerboard")
                                         .font(.system(size: 18))
-                                        .foregroundColor(Color(hex: "64B4FF")!)
+                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
                                         .frame(width: 28)
 
-                                    Text("SafeMoney")
+                                    Text("FamilyBudgetPro")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(.white)
 
@@ -221,7 +338,7 @@ struct SettingsView: View {
 
                                     Text("Your Family's Financial Guardian")
                                         .font(.system(size: 12))
-                                        .foregroundColor(Color(hex: "8B9BB4")!)
+                                        .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
                                 }
                             }
                         }
@@ -232,7 +349,7 @@ struct SettingsView: View {
                                 Spacer()
                                 Image(systemName: "arrow.right.square")
                                     .font(.system(size: 16))
-                                Text("Logout")
+                                Text("Keluar")
                                     .font(.system(size: 16, weight: .semibold))
                                 Spacer()
                             }
@@ -249,16 +366,13 @@ struct SettingsView: View {
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 40)
-                        .alert("Logout", isPresented: $showLogoutConfirm) {
+                        .alert("Keluar", isPresented: $showLogoutConfirm) {
                             Button("Batal", role: .cancel) { }
-                            Button("Logout", role: .destructive) {
-                                dismiss()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    onLogout?()
-                                }
+                            Button("Keluar", role: .destructive) {
+                                performLogout()
                             }
                         } message: {
-                            Text("Apakah Anda yakin ingin keluar?")
+                            Text("Apakah Anda yakin ingin keluar? Data lokal tetap tersimpan.")
                         }
                     }
                     .padding(.horizontal, 20)
@@ -279,7 +393,7 @@ struct SettingsView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(hex: "1A1F3A")!)
+                                .fill(Color(hex: "1A1F3A") ?? Color.black)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .stroke(Color.green.opacity(0.3), lineWidth: 1)
@@ -306,7 +420,7 @@ struct SettingsView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(hex: "1A1F3A")!)
+                                .fill(Color(hex: "1A1F3A") ?? Color.black)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .stroke(Color.orange.opacity(0.3), lineWidth: 1)
@@ -319,14 +433,14 @@ struct SettingsView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle("Pengaturan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color(hex: "8B9BB4")!)
+                            .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
                     }
                 }
             }
@@ -334,6 +448,7 @@ struct SettingsView: View {
                 loadUserData()
                 rememberMe = UserDefaults.standard.bool(forKey: "rememberMe")
                 biometricEnabled = UserDefaults.standard.bool(forKey: "biometricEnabled")
+                autoSync = UserDefaults.standard.object(forKey: "autoSync") as? Bool ?? true
             }
         }
     }
@@ -345,7 +460,7 @@ struct SettingsView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color(hex: "64B4FF")!.opacity(0.2), Color(hex: "8B5CF6")!.opacity(0.2)],
+                            colors: [Color(hex: "64B4FF") ?? Color.blue.opacity(0.2), Color(hex: "8B5CF6") ?? Color.purple.opacity(0.2)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -353,18 +468,38 @@ struct SettingsView: View {
                     .frame(width: 90, height: 90)
                     .overlay(
                         Circle()
-                            .stroke(Color(hex: "64B4FF")!.opacity(0.5), lineWidth: 2)
+                            .stroke(Color(hex: "64B4FF") ?? Color.blue.opacity(0.5), lineWidth: 2)
                     )
 
-                Text(String(name.prefix(1).uppercased()))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color(hex: "64B4FF")!, Color(hex: "8B5CF6")!],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                if let photoURL = photoURL, let url = URL(string: photoURL) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Text(String(name.prefix(1).uppercased()))
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(hex: "64B4FF") ?? Color.blue, Color(hex: "8B5CF6") ?? Color.purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                    .frame(width: 90, height: 90)
+                    .clipShape(Circle())
+                } else {
+                    Text(String(name.prefix(1).uppercased()))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "64B4FF") ?? Color.blue, Color(hex: "8B5CF6") ?? Color.purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
+                }
             }
 
             Text(name.isEmpty ? "User" : name)
@@ -373,7 +508,7 @@ struct SettingsView: View {
 
             Text(email.isEmpty ? "No email" : email)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color(hex: "8B9BB4")!)
+                .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
         }
         .padding(.vertical, 24)
     }
@@ -383,7 +518,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "8B9BB4")!)
+                .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
                 .tracking(1)
                 .textCase(.uppercase)
                 .padding(.leading, 4)
@@ -397,7 +532,7 @@ struct SettingsView: View {
                     .fill(Color.white.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color(hex: "64B4FF")!.opacity(0.1), lineWidth: 1)
+                            .stroke(Color(hex: "64B4FF") ?? Color.blue.opacity(0.1), lineWidth: 1)
                     )
             )
         }
@@ -405,98 +540,149 @@ struct SettingsView: View {
 
     // MARK: - Data Loading
     private func loadUserData() {
-        let users = dataService.fetchUsers()
-        print("📋 SettingsView - Found \(users.count) users")
-        for u in users {
-            print("   - \(u.name): \(u.email)")
-        }
+        // Load from UserProfile (Firebase auth)
+        let profileDescriptor = FetchDescriptor<UserProfile>(
+            predicate: #Predicate { $0.isLoggedIn == true }
+        )
 
-        // Get the first user (or the one matching saved email)
-        let savedEmail = UserDefaults.standard.string(forKey: "lastLoggedInEmail") ?? ""
-        if let user = users.first(where: { $0.email.lowercased() == savedEmail.lowercased() }) ?? users.first {
-            currentUser = user
-            name = user.name
-            email = user.email
-            print("✅ SettingsView - Loaded user: \(user.name) (\(user.email))")
+        if let profile = try? modelContext.fetch(profileDescriptor).first {
+            currentUserProfile = profile
+            name = profile.displayName
+            email = profile.email
+            photoURL = profile.photoURL
+            authProvider = profile.authProvider
+            lastSyncDate = profile.lastSyncAt
+            print("SettingsView - Loaded UserProfile: \(profile.displayName)")
         } else {
-            print("❌ SettingsView - No user found!")
+            // Fallback: load from legacy User model
+            let userDescriptor = FetchDescriptor<User>()
+            if let user = try? modelContext.fetch(userDescriptor).first {
+                name = user.name
+                email = user.email
+                authProvider = "email"
+                print("SettingsView - Loaded legacy User: \(user.name)")
+            } else {
+                print("SettingsView - No user found!")
+            }
         }
     }
 
     // MARK: - Save Profile
     private func saveProfile() {
         guard !name.isEmpty else {
-            showError("Name cannot be empty")
-            return
-        }
-        guard !email.isEmpty, email.contains("@") else {
-            showError("Please enter a valid email")
+            showError("Nama tidak boleh kosong")
             return
         }
 
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if let user = currentUser {
-                user.name = name
-                user.email = email
-                dataService.save()
-                showSuccess("Profile updated successfully")
-            } else {
-                showError("User not found")
+        Task {
+            // Update Firebase profile
+            if let firebaseUser = Auth.auth().currentUser {
+                let changeRequest = firebaseUser.createProfileChangeRequest()
+                changeRequest.displayName = name
+                try? await changeRequest.commitChanges()
+
+                // Update Firestore
+                let db = Firestore.firestore()
+                try? await db.collection("users").document(firebaseUser.uid).updateData([
+                    "displayName": name,
+                    "updatedAt": Timestamp(date: Date())
+                ])
             }
-            isLoading = false
+
+            // Update local
+            await MainActor.run {
+                if let profile = currentUserProfile {
+                    profile.displayName = name
+                    try? modelContext.save()
+                }
+
+                // Also update legacy User
+                let userDescriptor = FetchDescriptor<User>()
+                if let user = try? modelContext.fetch(userDescriptor).first {
+                    user.name = name
+                    dataService.save()
+                }
+
+                isLoading = false
+                showSuccess("Profil berhasil diperbarui")
+            }
         }
     }
 
     // MARK: - Change Password
     private func changePassword() {
-        print("🔐 changePassword called")
-
         guard !currentPassword.isEmpty else {
-            showError("Please enter current password")
+            showError("Masukkan password saat ini")
             return
         }
         guard !newPassword.isEmpty, newPassword.count >= 6 else {
-            showError("New password must be at least 6 characters")
+            showError("Password baru minimal 6 karakter")
             return
         }
         guard newPassword == confirmNewPassword else {
-            showError("Passwords do not match")
+            showError("Password baru tidak cocok")
             return
         }
 
-        // Ensure we have a current user
-        if currentUser == nil {
-            let users = dataService.fetchUsers()
-            print("🔐 Looking for user among \(users.count) users")
-            currentUser = users.first
+        isLoading = true
+
+        Task {
+            do {
+                // Re-authenticate user
+                guard let user = Auth.auth().currentUser, let email = user.email else {
+                    throw NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not found"])
+                }
+
+                let credential = EmailAuthProvider.credential(withEmail: email, password: currentPassword)
+                try await user.reauthenticate(with: credential)
+
+                // Update password
+                try await user.updatePassword(to: newPassword)
+
+                await MainActor.run {
+                    isLoading = false
+                    currentPassword = ""
+                    newPassword = ""
+                    confirmNewPassword = ""
+                    showPasswordSection = false
+                    showSuccess("Password berhasil diubah")
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    showError("Gagal mengubah password: \(error.localizedDescription)")
+                }
+            }
         }
+    }
 
-        guard let user = currentUser else {
-            showError("User not found")
-            return
+    // MARK: - Manual Sync
+    private func manualSync() {
+        isLoading = true
+
+        Task {
+            await FirebaseSyncService.shared.syncAll(modelContext: modelContext)
+
+            await MainActor.run {
+                isLoading = false
+                lastSyncDate = Date()
+                showSuccess("Sinkronisasi berhasil")
+            }
         }
+    }
 
-        print("🔐 Checking password for user: \(user.email)")
-        print("🔐 Current password entered: \(currentPassword)")
-        print("🔐 Stored password: \(user.password)")
+    // MARK: - Logout
+    private func performLogout() {
+        Task {
+            await authService.logout(modelContext: modelContext)
 
-        guard user.password == currentPassword else {
-            showError("Current password is incorrect")
-            return
+            await MainActor.run {
+                dismiss()
+                onLogout?()
+            }
         }
-
-        user.password = newPassword
-        dataService.save()
-        print("🔐 Password updated successfully for \(user.email)")
-
-        currentPassword = ""
-        newPassword = ""
-        confirmNewPassword = ""
-        showPasswordSection = false
-
-        showSuccess("Password changed successfully")
     }
 
     // MARK: - Toast Helpers
@@ -517,6 +703,37 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - Custom Secure Field
+struct CustomSecureField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
+                    .padding(.horizontal, 16)
+            }
+
+            SecureField("", text: $text)
+                .font(.system(size: 15))
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(hex: "1A1F3A") ?? Color.black)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(hex: "64B4FF") ?? Color.blue.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
 // MARK: - Custom Settings Field
 struct CustomSettingsField: View {
     let icon: String
@@ -529,18 +746,18 @@ struct CustomSettingsField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color(hex: "8B9BB4")!)
+                .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
 
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(Color(hex: "64B4FF")!)
+                    .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
                     .frame(width: 20)
 
                 if isReadOnly {
                     Text(text.isEmpty ? title : text)
                         .font(.system(size: 15))
-                        .foregroundColor(Color(hex: "8B9BB4")!.opacity(0.7))
+                        .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray.opacity(0.7))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     TextField(title, text: $text)
@@ -554,10 +771,10 @@ struct CustomSettingsField: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isReadOnly ? Color(hex: "1A1F3A")!.opacity(0.5) : Color(hex: "1A1F3A")!)
+                    .fill(isReadOnly ? Color(hex: "1A1F3A") ?? Color.black.opacity(0.5) : Color(hex: "1A1F3A") ?? Color.black)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(hex: "64B4FF")!.opacity(isReadOnly ? 0.1 : 0.2), lineWidth: 1)
+                            .stroke(Color(hex: "64B4FF") ?? Color.blue.opacity(isReadOnly ? 0.1 : 0.2), lineWidth: 1)
                     )
             )
         }
@@ -575,7 +792,7 @@ struct ToggleRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundColor(Color(hex: "64B4FF")!)
+                .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -585,13 +802,13 @@ struct ToggleRow: View {
 
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "8B9BB4")!)
+                    .foregroundColor(Color(hex: "8B9BB4") ?? Color.gray)
             }
 
             Spacer()
 
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "64B4FF")!))
+                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "64B4FF") ?? Color.blue))
                 .labelsHidden()
         }
         .padding(.vertical, 6)

@@ -3,19 +3,42 @@ import Foundation
 
 @Model
 class Category {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var name: String
     var type: TransactionType
     var icon: String
     var colorHex: String
-    var parentCategory: String? // ⭐ Nama kategori parent (untuk sub-kategori)
     var isDefault: Bool
+    var isSystem: Bool      // true = cannot delete (core defaults)
+    var sortOrder: Int
     var createdAt: Date
+
+    // ⭐ FAMILY SHARING FIELDS
+    var familyCode: String?
+    var firebaseUid: String?
+
+    // ⭐ NEW: Relationship-based parent (instead of String)
+    @Relationship(inverse: \Category.subcategories)
+    var parentCategory: Category?
+
+    @Relationship(deleteRule: .cascade)
+    var subcategories: [Category]?
 
     @Relationship(inverse: \Transaction.category)
     var transactions: [Transaction]?
 
-    init(name: String, type: TransactionType, icon: String, colorHex: String, parentCategory: String? = nil, isDefault: Bool = false) {
+    init(
+        name: String,
+        type: TransactionType,
+        icon: String,
+        colorHex: String,
+        parentCategory: Category? = nil,
+        isDefault: Bool = false,
+        isSystem: Bool = false,
+        sortOrder: Int = 0,
+        familyCode: String? = nil,
+        firebaseUid: String? = nil
+    ) {
         self.id = UUID()
         self.name = name
         self.type = type
@@ -23,7 +46,11 @@ class Category {
         self.colorHex = colorHex
         self.parentCategory = parentCategory
         self.isDefault = isDefault
+        self.isSystem = isSystem
+        self.sortOrder = sortOrder
         self.createdAt = Date()
+        self.familyCode = familyCode
+        self.firebaseUid = firebaseUid
     }
 
     // ⭐ Helper computed properties
@@ -32,7 +59,7 @@ class Category {
     }
 
     var displayName: String {
-        isSubcategory ? "\(parentCategory!) › \(name)" : name
+        isSubcategory ? "\(parentCategory!.name) › \(name)" : name
     }
 }
 
@@ -42,74 +69,50 @@ enum TransactionType: String, Codable, CaseIterable {
     case transfer = "Transfer"
 }
 
-// MARK: - Default Categories
+// MARK: - Default Categories Seed Data
 extension Category {
-    // ⭐ INCOME CATEGORIES (flat, no subcategories)
-    static let incomeCategories: [(name: String, icon: String, color: String)] = [
-        ("Gaji", "dollarsign.circle.fill", "#34C759"),
-        ("Freelance", "laptopcomputer", "#5856D6"),
-        ("Bisnis", "briefcase.fill", "#FF9500"),
-        ("Bonus", "gift.fill", "#FF3B30"),
-        ("Investasi", "chart.line.uptrend.xyaxis", "#AF52DE"),
-        ("Lainnya", "ellipsis.circle.fill", "#8E8E93"),
+
+    // ⭐ INCOME CATEGORIES (flat, editable, CRUD-able)
+    static let defaultIncomeCategories: [(name: String, icon: String, color: String, isSystem: Bool)] = [
+        ("Gaji", "dollarsign.circle.fill", "#34C759", true),      // System = cannot delete
+        ("Bisnis", "briefcase.fill", "#FF9500", false),
+        ("Freelance", "laptopcomputer", "#5856D6", false),
+        ("Bonus", "gift.fill", "#FF3B30", false),
     ]
 
-    // ⭐ EXPENSE CATEGORIES — Hierarchical structure
-    // Format: (name, icon, color, parent)
-    // parent = nil → main category
-    // parent = "Name" → subcategory of that main category
-    static let expenseCategories: [(name: String, icon: String, color: String, parent: String?)] = [
-
-        // ===== RUMAH TANGGA (Parent) =====
-        ("Rumah Tangga", "house.fill", "#FF9500", nil),
-        ("Listrik", "bolt.fill", "#FFD60A", "Rumah Tangga"),
-        ("Air", "drop.fill", "#64D2FF", "Rumah Tangga"),
-        ("Belanja Masak", "carrot.fill", "#FF6B22", "Rumah Tangga"),
-
-        // ===== BELANJA (Parent) =====
-        ("Belanja", "bag.fill", "#FF9500", nil),
-        ("Belanja Makeup", "face.smiling.fill", "#FF2D92", "Belanja"),
-        ("Baju & Sepatu", "tshirt.fill", "#5856D6", "Belanja"),
-        ("Sabun", "sparkles", "#BF5AF2", "Belanja"),
-        ("Handbody", "hand.raised.fill", "#FF6482", "Belanja"),
-        ("Toothpaste", "mouth.fill", "#5E5CE6", "Belanja"),
-        ("Lainnya (Makeup)", "ellipsis", "#8E8E93", "Belanja"),
-
-        // ===== KEPERLUAN CIA (Parent) =====
-        ("Keperluan Cia", "figure.child", "#FF3B30", nil),
-        ("Pampers", "rectangle.fill", "#34C759", "Keperluan Cia"),
-        ("Susu", "cup.and.saucer.fill", "#64D2FF", "Keperluan Cia"),
-        ("Obat", "cross.case.fill", "#FF3B30", "Keperluan Cia"),
-
-        // ===== ART (Parent) =====
-        ("ART", "person.2.fill", "#AF52DE", nil),
-        ("ART (Bu Inul)", "person.fill", "#FF9500", "ART"),
-        ("ART (Bu Lilik)", "person.fill.checkmark", "#AF52DE", "ART"),
-
-        // ===== TRANSPORTASI (Parent) =====
-        ("Transportasi", "car.fill", "#007AFF", nil),
-        ("Bensin", "fuel.pump.fill", "#34C759", "Transportasi"),
-        ("Ojek Online", "bicycle", "#00C7BE", "Transportasi"),
-
-        // ===== MAIN CATEGORIES (No subcategories) =====
-        ("Makanan", "fork.knife", "#FF6B22", nil),
-        ("Pendidikan", "graduationcap.fill", "#5856D6", nil),
-        ("Kesehatan", "heart.fill", "#FF2D55", nil),
-        ("Hiburan", "tv.fill", "#AF52DE", nil),
-        ("Lainnya", "ellipsis.circle.fill", "#8E8E93", nil),
+    // ⭐ EXPENSE CATEGORIES — Hierarchical with relationships
+    // Parents first, then children
+    static let defaultExpenseParents: [(name: String, icon: String, color: String, sortOrder: Int)] = [
+        ("Rumah Tangga", "house.fill", "#FF6B6B", 1),
+        ("Keperluan Anak", "figure.child", "#C9B1FF", 2),
+        ("ART / Pembantu", "person.2.fill", "#A0C4FF", 3),
+        ("Transportasi", "car.fill", "#FDFFB6", 4),
     ]
 
-    // ⭐ Helper: Get all parent categories
-    static var parentExpenseCategories: [(name: String, icon: String, color: String)] {
-        expenseCategories
-            .filter { $0.parent == nil }
-            .map { ($0.name, $0.icon, $0.color) }
-    }
+    static let defaultExpenseSubcategories: [(name: String, icon: String, color: String, parentName: String, sortOrder: Int)] = [
+        // Rumah Tangga children
+        ("Listrik", "bolt.fill", "#FFD93D", "Rumah Tangga", 1),
+        ("Air", "drop.fill", "#4D96FF", "Rumah Tangga", 2),
+        ("Belanja Masak", "cart.fill", "#6BCB77", "Rumah Tangga", 3),
+        ("Belanja Makeup & Perlengkapan", "sparkles", "#FF9F9F", "Rumah Tangga", 4),
 
-    // ⭐ Helper: Get subcategories for a parent
-    static func subcategories(for parentName: String) -> [(name: String, icon: String, color: String)] {
-        expenseCategories
-            .filter { $0.parent == parentName }
-            .map { ($0.name, $0.icon, $0.color) }
-    }
+        // Makeup sub-subcategories (children of Belanja Makeup)
+        ("Sabun", "bubble.left.fill", "#A8E6CF", "Belanja Makeup & Perlengkapan", 1),
+        ("Handbody", "hand.tap.fill", "#DCEDC1", "Belanja Makeup & Perlengkapan", 2),
+        ("Pasta Gigi", "mouth.fill", "#FFD3B6", "Belanja Makeup & Perlengkapan", 3),
+        ("Lainnya", "ellipsis", "#FFAAA5", "Belanja Makeup & Perlengkapan", 4),
+
+        // Keperluan Anak children
+        ("Pampers", "rectangle.fill", "#B5EAD7", "Keperluan Anak", 1),
+        ("Susu", "cup.and.saucer.fill", "#FFDAC1", "Keperluan Anak", 2),
+        ("Obat-obatan", "cross.case.fill", "#FFB7B2", "Keperluan Anak", 3),
+        ("Baju & Sepatu", "tshirt.fill", "#E2F0CB", "Keperluan Anak", 4),
+
+        // ART children
+        ("Asisten Rumah Tangga", "person.fill", "#9BF6FF", "ART / Pembantu", 1),
+
+        // Transportasi children
+        ("Bensin", "fuel.pump.fill", "#CAFFBF", "Transportasi", 1),
+        ("Ojek Online", "bicycle", "#FFD6A5", "Transportasi", 2),
+    ]
 }

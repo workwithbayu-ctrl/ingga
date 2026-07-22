@@ -60,7 +60,7 @@ struct AddTransactionView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+                Color(hex: "0B1220")!.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -167,7 +167,7 @@ struct AddTransactionView: View {
                         .padding(.vertical, 12)
                         .background(
                             selectedTab == tab ?
-                            Color(hex: "64B4FF")?.opacity(0.3) ?? Color.blue.opacity(0.3) :
+                            Color(hex: "64B4FF")!.opacity(0.3) :
                             Color.clear
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -201,8 +201,8 @@ struct AddTransactionView: View {
         .background(
             LinearGradient(
                 colors: [
-                    Color(hex: "1A2B4A") ?? Color.blue.opacity(0.3),
-                    Color(hex: "0B1220") ?? Color.black
+                    Color(hex: "1A2B4A")!,
+                    Color(hex: "0B1220")!
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -288,7 +288,7 @@ struct AddTransactionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color(hex: "64B4FF")?.opacity(0.3) ?? Color.blue.opacity(0.3), lineWidth: 1)
+                            .stroke(Color(hex: "64B4FF")!.opacity(0.3), lineWidth: 1)
                     )
             }
         }
@@ -310,15 +310,15 @@ struct AddTransactionView: View {
             .background(
                 LinearGradient(
                     colors: [
-                        Color(hex: "64B4FF") ?? Color.blue,
-                        Color(hex: "4A90E2") ?? Color.blue.opacity(0.8)
+                        Color(hex: "64B4FF")!,
+                        Color(hex: "4A90E2")!
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             )
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color(hex: "64B4FF")?.opacity(0.3) ?? Color.blue.opacity(0.3), radius: 15, x: 0, y: 8)
+            .shadow(color: Color(hex: "64B4FF")!.opacity(0.3), radius: 15, x: 0, y: 8)
         }
         .disabled(amount.isEmpty || Double(amount) == nil || Double(amount) == 0)
         .opacity(amount.isEmpty || Double(amount) == nil || Double(amount) == 0 ? 0.5 : 1)
@@ -474,9 +474,9 @@ struct FormFieldButton: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundColor(Color(hex: color) ?? Color.blue)
+                    .foregroundColor(Color(hex: color)!)
                     .frame(width: 32, height: 32)
-                    .background(Color(hex: color)?.opacity(0.15) ?? Color.blue.opacity(0.15))
+                    .background(Color(hex: color)!.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -515,7 +515,7 @@ struct CategoryPickerSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+                Color(hex: "0B1220")!.ignoresSafeArea()
 
                 List {
                     ForEach(categories) { category in
@@ -526,12 +526,12 @@ struct CategoryPickerSheet: View {
                             HStack(spacing: 12) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color(hex: category.colorHex)?.opacity(0.2) ?? Color.blue.opacity(0.2))
+                                        .fill(Color(hex: category.colorHex)!.opacity(0.2))
                                         .frame(width: 40, height: 40)
 
                                     Image(systemName: category.icon)
                                         .font(.system(size: 18))
-                                        .foregroundColor(Color(hex: category.colorHex) ?? Color.blue)
+                                        .foregroundColor(Color(hex: category.colorHex)!)
                                 }
 
                                 Text(category.name)
@@ -542,7 +542,7 @@ struct CategoryPickerSheet: View {
 
                                 if selectedCategory?.id == category.id {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                        .foregroundColor(Color(hex: "64B4FF")!)
                                 }
                             }
                         }
@@ -577,7 +577,7 @@ struct WalletPickerSheetAdd: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+                Color(hex: "0B1220")!.ignoresSafeArea()
 
                 List {
                     ForEach(wallets) { wallet in
@@ -588,12 +588,12 @@ struct WalletPickerSheetAdd: View {
                             HStack(spacing: 12) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color(hex: wallet.color)?.opacity(0.2) ?? Color.blue.opacity(0.2))
+                                        .fill(Color(hex: wallet.color)!.opacity(0.2))
                                         .frame(width: 40, height: 40)
 
                                     Image(systemName: wallet.icon)
                                         .font(.system(size: 18))
-                                        .foregroundColor(Color(hex: wallet.color) ?? Color.blue)
+                                        .foregroundColor(Color(hex: wallet.color)!)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -610,7 +610,7 @@ struct WalletPickerSheetAdd: View {
 
                                 if selectedWallet?.id == wallet.id {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(Color(hex: "64B4FF") ?? Color.blue)
+                                        .foregroundColor(Color(hex: "64B4FF")!)
                                 }
                             }
                         }
@@ -662,7 +662,7 @@ struct SuccessToast: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .background(
-            Color(hex: "1A2B4A")?.opacity(0.95) ?? Color.black.opacity(0.9)
+            Color(hex: "1A2B4A")!.opacity(0.95)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(

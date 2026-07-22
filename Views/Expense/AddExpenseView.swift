@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
+import FirebaseAuth
 
 struct AddExpenseView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var authService = FirebaseAuthService.shared
 
     private var dataService = DataService.shared
 
@@ -27,11 +27,28 @@ struct AddExpenseView: View {
 
     @State private var expandedParent: Category?
 
+    // ✅ TAMBAH: State untuk form kategori
+    @State private var showAddCategory: Bool = false
+    @State private var showAddSubcategory: Bool = false
+    @State private var parentForSubcategory: Category? = nil
+    @State private var categoryToEdit: Category? = nil
+    @State private var showEditCategory: Bool = false
+    @State private var categoryToDelete: Category? = nil
+    @State private var showDeleteConfirm: Bool = false
+
+    // ⭐ FIX: sebelumnya bergantung ke `FirebaseAuthService.shared.currentUser`, yang TIDAK
+    // PERNAH terisi (listener-nya tidak pernah dijalankan di app ini) — jadi `currentUser`
+    // di sini selalu nil dan muncul error "User tidak ditemukan" saat simpan transaksi.
+    // Sekarang resolve langsung dari Firebase Auth (sumber kebenaran login yang aktif)
+    // dicocokkan dengan email di User lokal.
     private var currentUser: User? {
         let descriptor = FetchDescriptor<User>()
         let users = (try? modelContext.fetch(descriptor)) ?? []
-        if let currentRole = authService.currentUser?.role {
-            return users.first { $0.role == currentRole }
+        guard !users.isEmpty else { return nil }
+
+        if let email = Auth.auth().currentUser?.email,
+           let match = users.first(where: { $0.email == email }) {
+            return match
         }
         return users.first
     }
@@ -56,7 +73,7 @@ struct AddExpenseView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "0B1220")?.ignoresSafeArea() ?? Color.black.ignoresSafeArea()
+                Color(hex: "0B1220")!.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 0) {
@@ -109,7 +126,7 @@ struct AddExpenseView: View {
             }
             .navigationTitle("Tambah Pengeluaran")
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(Color(hex: "0B1220") ?? Color.black, for: .navigationBar)
+            .toolbarBackground(Color(hex: "0B1220")!, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -121,6 +138,34 @@ struct AddExpenseView: View {
                 Button("OK") { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "")
+            }
+            // ✅ TAMBAH: Sheets dan Alert
+            .sheet(isPresented: $showAddCategory, onDismiss: { loadData() }) {
+                CategoryFormView(defaultType: .expense)
+            }
+            .sheet(isPresented: $showAddSubcategory, onDismiss: { loadData() }) {
+                if let parent = parentForSubcategory {
+                    CategoryFormView(parentCategory: parent, defaultType: .expense)
+                }
+            }
+            .sheet(isPresented: $showEditCategory, onDismiss: { loadData() }) {
+                if let category = categoryToEdit {
+                    CategoryFormView(existingCategory: category)
+                }
+            }
+            .alert("Hapus Kategori?", isPresented: $showDeleteConfirm) {
+                Button("Batal", role: .cancel) {}
+                Button("Hapus", role: .destructive) {
+                    if let category = categoryToDelete {
+                        deleteCategory(category)
+                    }
+                }
+            } message: {
+                if let category = categoryToDelete {
+                    Text(canDeleteCategory(category)
+                        ? "Kategori '\(category.name)' akan dihapus permanen"
+                        : "Kategori '\(category.name)' tidak bisa dihapus karena masih ada transaksi atau sub kategori")
+                }
             }
             .onAppear {
                 loadData()
@@ -237,13 +282,33 @@ struct AddExpenseView: View {
         .padding(.top, 12)
     }
 
+    // ✅ GANTI: categoryDropdownSection dengan tombol tambah kategori & sub kategori
     private var categoryDropdownSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("KATEGORI")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(.white.opacity(0.6))
-                .tracking(1)
+            HStack {
+                Text("KATEGORI")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.6))
+                    .tracking(1)
+                
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    // ✅ TAMBAH: Tombol Tambah Kategori Utama
+                    Button {
+                        showAddCategory = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 12))
+                            Text("Kategori")
+                                .font(.caption)
+                        }
+                        .foregroundColor(Color(hex: "64B4FF")!)
+                    }
+                }
+            }
 
             if categories.isEmpty {
                 emptyCategoryView
@@ -273,11 +338,11 @@ struct AddExpenseView: View {
             HStack(spacing: 10) {
                 Image(systemName: category.icon)
                     .font(.system(size: 18))
-                    .foregroundColor(Color(hex: category.colorHex) ?? .gray)
+                    .foregroundColor(Color(hex: category.colorHex)!)
                     .frame(width: 36, height: 36)
                     .background(
                         Circle()
-                            .fill((Color(hex: category.colorHex) ?? .gray).opacity(0.15))
+                            .fill((Color(hex: category.colorHex)!).opacity(0.15))
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -286,8 +351,7 @@ struct AddExpenseView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
 
-                    if let parentId = category.parentCategory,
-                       let parent = categories.first(where: { $0.id.uuidString == parentId }) {
+                    if let parent = category.parentCategory {
                         Text(parent.name)
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.5))
@@ -324,21 +388,38 @@ struct AddExpenseView: View {
                     parent: group.parent,
                     subcategories: group.subcategories,
                     isExpanded: expandedParent?.id == group.parent.id,
-                    selectedCategory: selectedCategory
-                ) {
-                    withAnimation(.spring(duration: 0.3)) {
-                        if expandedParent?.id == group.parent.id {
-                            expandedParent = nil
-                        } else {
-                            expandedParent = group.parent
+                    selectedCategory: selectedCategory,
+                    onExpand: {
+                        withAnimation(.spring(duration: 0.3)) {
+                            if expandedParent?.id == group.parent.id {
+                                expandedParent = nil
+                            } else {
+                                expandedParent = group.parent
+                            }
                         }
+                    },
+                    onSelectSub: { sub in
+                        withAnimation(.spring(duration: 0.3)) {
+                            selectedCategory = sub
+                            expandedParent = nil
+                        }
+                    },
+                    // ✅ TAMBAH: Callback untuk tambah sub kategori
+                    onAddSubcategory: { parent in
+                        parentForSubcategory = parent
+                        showAddSubcategory = true
+                    },
+                    // ✅ TAMBAH: Callback untuk edit parent
+                    onEditParent: { parent in
+                        categoryToEdit = parent
+                        showEditCategory = true
+                    },
+                    // ✅ TAMBAH: Callback untuk hapus parent
+                    onDeleteParent: { parent in
+                        categoryToDelete = parent
+                        showDeleteConfirm = true
                     }
-                } onSelectSub: { sub in
-                    withAnimation(.spring(duration: 0.3)) {
-                        selectedCategory = sub
-                        expandedParent = nil
-                    }
-                }
+                )
             }
         }
     }
@@ -459,7 +540,7 @@ struct AddExpenseView: View {
             .padding(28)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(hex: "1A2A4A") ?? Color.black)
+                    .fill(Color(hex: "1A2A4A")!)
                     .shadow(radius: 16)
             )
         }
@@ -514,6 +595,29 @@ struct AddExpenseView: View {
             dismiss()
         }
     }
+
+    // ✅ TAMBAH: Method cek bisa hapus kategori
+    private func canDeleteCategory(_ category: Category) -> Bool {
+        let transactions = dataService.fetchTransactions().filter {
+            $0.category?.id == category.id
+        }
+        let subcategories = dataService.fetchCategories().filter {
+            $0.parentCategory?.id == category.id
+        }
+        return transactions.isEmpty && subcategories.isEmpty
+    }
+
+    // ✅ TAMBAH: Method hapus kategori
+    private func deleteCategory(_ category: Category) {
+        guard canDeleteCategory(category) else {
+            errorMessage = "Kategori '\(category.name)' tidak bisa dihapus karena masih ada transaksi atau sub kategori"
+            return
+        }
+        
+        modelContext.delete(category)
+        try? modelContext.save()
+        loadData()
+    }
 }
 
 // MARK: - Compact Wallet Button Dark
@@ -527,7 +631,7 @@ struct CompactWalletButtonDark: View {
             HStack(spacing: 8) {
                 Image(systemName: wallet.icon)
                     .font(.system(size: 14))
-                    .foregroundColor(Color(hex: wallet.colorHex) ?? .blue)
+                    .foregroundColor(Color(hex: wallet.colorHex)!)
 
                 Text(wallet.name)
                     .font(.subheadline)
@@ -553,7 +657,7 @@ struct CompactWalletButtonDark: View {
     }
 }
 
-// MARK: - Category Parent Row Dark
+// MARK: - Category Parent Row Dark (UPDATED)
 struct CategoryParentRowDark: View {
     let parent: Category
     let subcategories: [Category]
@@ -561,6 +665,9 @@ struct CategoryParentRowDark: View {
     let selectedCategory: Category?
     let onExpand: () -> Void
     let onSelectSub: (Category) -> Void
+    let onAddSubcategory: (Category) -> Void      // ✅ BARU
+    let onEditParent: (Category) -> Void           // ✅ BARU
+    let onDeleteParent: (Category) -> Void         // ✅ BARU
 
     var body: some View {
         VStack(spacing: 0) {
@@ -568,11 +675,11 @@ struct CategoryParentRowDark: View {
                 HStack(spacing: 10) {
                     Image(systemName: parent.icon)
                         .font(.system(size: 16))
-                        .foregroundColor(Color(hex: parent.colorHex) ?? .gray)
+                        .foregroundColor(Color(hex: parent.colorHex)!)
                         .frame(width: 32, height: 32)
                         .background(
                             Circle()
-                                .fill((Color(hex: parent.colorHex) ?? .gray).opacity(0.15))
+                                .fill(Color(hex: parent.colorHex)!.opacity(0.15))
                         )
 
                     Text(parent.name)
@@ -581,6 +688,16 @@ struct CategoryParentRowDark: View {
                         .foregroundColor(.white)
 
                     Spacer()
+
+                    // ✅ TAMBAH: Tombol tambah sub kategori
+                    Button {
+                        onAddSubcategory(parent)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 16))
+                            .foregroundColor(.orange)
+                    }
+                    .buttonStyle(.plain)
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
@@ -592,72 +709,100 @@ struct CategoryParentRowDark: View {
                 .cornerRadius(10)
             }
             .buttonStyle(.plain)
+            // ✅ TAMBAH: Context menu untuk edit/hapus parent
+            .contextMenu {
+                            Button {
+                                onEditParent(parent)
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive) {
+                                onDeleteParent(parent)
+                            } label: {
+                                Label("Hapus", systemImage: "trash")
+                            }
+                        }
 
-            if isExpanded {
-                if subcategories.isEmpty {
-                    Button {
-                        onSelectSub(parent)
-                    } label: {
-                        Text("Pilih \(parent.name)")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color(hex: parent.colorHex) ?? .blue)
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 12)
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 70, maximum: 80))], spacing: 10) {
-                        ForEach(subcategories) { sub in
-                            SubCategoryGridItemDark(
-                                category: sub,
-                                isSelected: selectedCategory?.id == sub.id
-                            ) {
-                                onSelectSub(sub)
+                        if isExpanded {
+                            if subcategories.isEmpty {
+                                Button {
+                                    onSelectSub(parent)
+                                } label: {
+                                    Text("Pilih \(parent.name)")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Color(hex: parent.colorHex)!)
+                                        .cornerRadius(8)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, 12)
+                            } else {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 70, maximum: 80))], spacing: 10) {
+                                    ForEach(subcategories) { sub in
+                                        SubCategoryGridItemDark(
+                                            category: sub,
+                                            isSelected: selectedCategory?.id == sub.id
+                                        ) {
+                                            onSelectSub(sub)
+                                        }
+                                        // ✅ Context menu untuk sub kategori
+                                        .contextMenu {
+                                            Button {
+                                                onEditParent(sub)
+                                            } label: {
+                                                Label("Edit", systemImage: "pencil")
+                                            }
+                                            
+                                            Button(role: .destructive) {
+                                                onDeleteParent(sub)
+                                            } label: {
+                                                Label("Hapus", systemImage: "trash")
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.top, 10)
+                                .padding(.horizontal, 8)
                             }
                         }
                     }
-                    .padding(.top, 10)
-                    .padding(.horizontal, 8)
                 }
             }
-        }
-    }
-}
 
-// MARK: - Sub Category Grid Item Dark
-struct SubCategoryGridItemDark: View {
-    let category: Category
-    let isSelected: Bool
-    let action: () -> Void
+            // MARK: - Sub Category Grid Item Dark
+            struct SubCategoryGridItemDark: View {
+                let category: Category
+                let isSelected: Bool
+                let action: () -> Void
 
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? (Color(hex: category.colorHex) ?? .blue).opacity(0.2) : Color.white.opacity(0.06))
-                        .frame(width: 44, height: 44)
+                var body: some View {
+                    Button(action: action) {
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle()
+                                    .fill(isSelected ? (Color(hex: category.colorHex)!).opacity(0.2) : Color.white.opacity(0.06))
+                                    .frame(width: 44, height: 44)
 
-                    Image(systemName: category.icon)
-                        .font(.system(size: 18))
-                        .foregroundColor(isSelected ? (Color(hex: category.colorHex) ?? .blue) : .white.opacity(0.7))
+                                Image(systemName: category.icon)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(isSelected ? (Color(hex: category.colorHex)!) : .white.opacity(0.7))
+                            }
+
+                            Text(category.name)
+                                .font(.caption)
+                                .fontWeight(isSelected ? .semibold : .regular)
+                                .foregroundColor(isSelected ? (Color(hex: category.colorHex)!) : .white.opacity(0.7))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 70)
                 }
-
-                Text(category.name)
-                    .font(.caption)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundColor(isSelected ? (Color(hex: category.colorHex) ?? .blue) : .white.opacity(0.7))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
             }
-        }
-        .buttonStyle(.plain)
-        .frame(width: 70)
-    }
-}

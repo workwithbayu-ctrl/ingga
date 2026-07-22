@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct PocketDetailView: View {
-    @StateObject private var dataService = DataService.shared
+    // DataService is @Observable, access via DataService.shared
 
     let pocket: Pocket
 
@@ -17,12 +17,12 @@ struct PocketDetailView: View {
     @State private var editedAllocation: String = ""
 
     var transactions: [PocketTransaction] {
-        dataService.fetchPocketTransactions(for: pocket)
+        DataService.shared.fetchPocketTransactions(for: pocket)
     }
 
     var associatedWallet: Wallet? {
         guard let walletID = pocket.walletID else { return nil }
-        return dataService.fetchWallets().first { $0.id == walletID }
+        return DataService.shared.fetchWallets().first { $0.id == walletID }
     }
 
     var body: some View {
@@ -257,7 +257,7 @@ struct PocketDetailView: View {
                             let target = Double(editedTarget) ?? pocket.targetAmount
                             let allocation = Double(editedAllocation) ?? pocket.allocationPercentage
 
-                            dataService.updatePocket(
+                            DataService.shared.updatePocket(
                                 pocket,
                                 name: editedName,
                                 targetAmount: target,
