@@ -490,12 +490,16 @@ class DataService: ObservableObject {
     // MARK: - Firebase Sync Helpers
     private func createSyncRecord(entityType: String, entityId: UUID, action: String) {
         guard let context = modelContext else { return }
-        FirebaseSyncService.shared.createSyncRecord(
+        let firebaseUid = getCurrentUserId()
+        let record = SyncRecord(
             entityType: entityType,
             entityId: entityId,
             action: action,
-            modelContext: context
+            firebaseUserId: firebaseUid
         )
+        context.insert(record)
+        try? context.save()
+        print("📝 SyncRecord created: \(entityType) \(action)")
     }
 
     private func syncTransactionToFirebase(_ transaction: Transaction) {

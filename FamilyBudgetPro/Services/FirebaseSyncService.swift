@@ -2,39 +2,28 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 import SwiftData
+import Combine
 
-@Observable
-class FirebaseSyncService {
+class FirebaseSyncService: ObservableObject {
     static let shared = FirebaseSyncService()
 
     private let db = Firestore.firestore()
-    private var syncTimer: Timer?
     private var isSyncing = false
+    private var syncTimer: Timer?
 
     private init() {}
 
-    // MARK: - ⭐ FAMILY SHARING HELPER
-    private func getCurrentFamilyCode(modelContext: ModelContext) -> String? {
-        guard let user = Auth.auth().currentUser else { return nil }
-        let descriptor = FetchDescriptor<UserProfile>()
-        guard let profiles = try? modelContext.fetch(descriptor),
-              let profile = profiles.first(where: { $0.firebaseUid == user.uid }),
-              let familyCode = profile.familyCode else { return nil }
-        return familyCode
-    }
-
-    // MARK: - Start Auto Sync
+    // MARK: - Auto Sync
     func startAutoSync(modelContext: ModelContext) {
-        // Sync setiap 30 detik dan saat app masuk foreground
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+        syncTimer?.invalidate()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
             Task {
                 await self.syncAll(modelContext: modelContext)
             }
         }
-
-        // Sync pertama kali
+        // Initial sync
         Task {
-            await syncAll(modelContext: modelContext)
+            await self.syncAll(modelContext: modelContext)
         }
     }
 
@@ -43,7 +32,7 @@ class FirebaseSyncService {
         syncTimer = nil
     }
 
-    // MARK: - Sync All Pending Data
+    // MARK: - Sync All (FILTERED by firebaseUid)
     func syncAll(modelContext: ModelContext) async {
         guard !isSyncing else { return }
         guard let firebaseUser = Auth.auth().currentUser else { return }
@@ -52,77 +41,61 @@ class FirebaseSyncService {
         defer { isSyncing = false }
 
         let familyCode = getCurrentFamilyCode(modelContext: modelContext)
+        let firebaseUserId = firebaseUser.uid
 
         do {
-            // 1. Sync pending records (deletions)
+            // 1. Sync pending records (deletions) - FILTERED by firebaseUid
             let syncDescriptor = FetchDescriptor<SyncRecord>(
-                predicate: #Predicate { $0.syncedToFirebase == false }
+                predicate: #Predicate { $0.syncedToFirebase == false && $0.firebaseUserId == firebaseUserId }
             )
             let pendingRecords = try modelContext.fetch(syncDescriptor)
 
             for record in pendingRecords {
-                await syncRecord(record, firebaseUserId: firebaseUser.uid, familyCode: familyCode, modelContext: modelContext)
+                await syncRecord(record, firebaseUserId: firebaseUserId, familyCode: familyCode, modelContext: modelContext)
             }
 
-            // 2. Sync Transactions
-            await syncTransactions(firebaseUserId: firebaseUser.uid, familyCode: familyCode, modelContext: modelContext)
+            // 2. Sync Transactions - FILTERED by firebaseUid
+            await syncTransactions(firebaseUserId: firebaseUserId, familyCode: familyCode, modelContext: modelContext)
 
-            // 3. Sync Wallets
-            await syncWallets(firebaseUserId: firebaseUser.uid, familyCode: familyCode, modelContext: modelContext)
+            // 3. Sync Wallets - FILTERED by firebaseUid
+            await syncWallets(firebaseUserId: firebaseUserId, familyCode: familyCode, modelContext: modelContext)
 
-            // 4. Sync Categories
-            await syncCategories(firebaseUserId: firebaseUser.uid, familyCode: familyCode, modelContext: modelContext)
+            // 4. Sync Categories - FILTERED by firebaseUid
+            await syncCategories(firebaseUserId: firebaseUserId, familyCode: familyCode, modelContext: modelContext)
 
-            // 5. Sync Pockets
-            await syncPockets(firebaseUserId: firebaseUser.uid, familyCode: familyCode, modelContext: modelContext)
+            // 5. Sync Pockets - FILTERED by firebaseUid
+            await syncPockets(firebaseUserId: firebaseUserId, familyCode: familyCode, modelContext: modelContext)
 
             // 6. Sync UserProfiles
-            await syncUserProfiles(firebaseUserId: firebaseUser.uid, modelContext: modelContext)
+            await syncUserProfiles(firebaseUserId: firebaseUserId, modelContext: modelContext)
 
             // Update last sync
-            // FIX: Fetch all profiles and filter manually instead of using predicate
             let allProfiles = try modelContext.fetch(FetchDescriptor<UserProfile>())
-            if let profile = allProfiles.first(where: { $0.firebaseUid == firebaseUser.uid }) {
+            if let profile = allProfiles.first(where: { $0.firebaseUid == firebaseUserId }) {
                 profile.lastSyncAt = Date()
                 try? modelContext.save()
             }
 
-            print("Firebase sync completed at \(Date())")
+            print("✅ Firebase sync completed at \(Date())")
 
         } catch {
-            print("Sync error: \(error.localizedDescription)")
+            print("❌ Sync error: \(error)")
         }
     }
 
-    // MARK: - Individual Sync Methods
-
-    private func syncRecord(_ record: SyncRecord, firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
-        do {
-            let collectionRef: CollectionReference
-            if let code = familyCode {
-                collectionRef = db.collection("families").document(code).collection(record.entityType.lowercased() + "s")
-            } else {
-                collectionRef = db.collection("users").document(firebaseUserId).collection(record.entityType.lowercased() + "s")
-            }
-            let docRef = collectionRef.document(record.entityId.uuidString)
-
-            switch record.action {
-            case "deleted":
-                try await docRef.delete()
-            default:
-                break
-            }
-
-            record.syncedToFirebase = true
-            try? modelContext.save()
-
-        } catch {
-            print("Failed to sync record: \(error)")
-        }
-    }
-
+    // MARK: - Sync Transactions (FILTERED by firebaseUid)
     private func syncTransactions(firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
-        let descriptor = FetchDescriptor<Transaction>()
+        let descriptor: FetchDescriptor<Transaction>
+        if let code = familyCode {
+            descriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate { $0.familyCode == code }
+            )
+        } else {
+            descriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate { $0.firebaseUid == firebaseUserId }
+            )
+        }
+
         guard let transactions = try? modelContext.fetch(descriptor) else { return }
 
         let batch = db.batch()
@@ -143,14 +116,25 @@ class FirebaseSyncService {
 
         do {
             try await batch.commit()
-            print("Synced \(transactions.count) transactions")
+            print("✅ Synced \(transactions.count) transactions")
         } catch {
-            print("Transaction sync error: \(error)")
+            print("❌ Transaction sync error: \(error)")
         }
     }
 
+    // MARK: - Sync Wallets (FILTERED by firebaseUid)
     private func syncWallets(firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
-        let descriptor = FetchDescriptor<Wallet>()
+        let descriptor: FetchDescriptor<Wallet>
+        if let code = familyCode {
+            descriptor = FetchDescriptor<Wallet>(
+                predicate: #Predicate { $0.familyCode == code }
+            )
+        } else {
+            descriptor = FetchDescriptor<Wallet>(
+                predicate: #Predicate { $0.firebaseUid == firebaseUserId }
+            )
+        }
+
         guard let wallets = try? modelContext.fetch(descriptor) else { return }
 
         let batch = db.batch()
@@ -171,14 +155,25 @@ class FirebaseSyncService {
 
         do {
             try await batch.commit()
-            print("Synced \(wallets.count) wallets")
+            print("✅ Synced \(wallets.count) wallets")
         } catch {
-            print("Wallet sync error: \(error)")
+            print("❌ Wallet sync error: \(error)")
         }
     }
 
+    // MARK: - Sync Categories (FILTERED by firebaseUid)
     private func syncCategories(firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
-        let descriptor = FetchDescriptor<Category>()
+        let descriptor: FetchDescriptor<Category>
+        if let code = familyCode {
+            descriptor = FetchDescriptor<Category>(
+                predicate: #Predicate { $0.familyCode == code }
+            )
+        } else {
+            descriptor = FetchDescriptor<Category>(
+                predicate: #Predicate { $0.firebaseUid == firebaseUserId }
+            )
+        }
+
         guard let categories = try? modelContext.fetch(descriptor) else { return }
 
         let batch = db.batch()
@@ -199,14 +194,25 @@ class FirebaseSyncService {
 
         do {
             try await batch.commit()
-            print("Synced \(categories.count) categories")
+            print("✅ Synced \(categories.count) categories")
         } catch {
-            print("Category sync error: \(error)")
+            print("❌ Category sync error: \(error)")
         }
     }
 
+    // MARK: - Sync Pockets (FILTERED by firebaseUid)
     private func syncPockets(firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
-        let descriptor = FetchDescriptor<Pocket>()
+        let descriptor: FetchDescriptor<Pocket>
+        if let code = familyCode {
+            descriptor = FetchDescriptor<Pocket>(
+                predicate: #Predicate { $0.familyCode == code }
+            )
+        } else {
+            descriptor = FetchDescriptor<Pocket>(
+                predicate: #Predicate { $0.firebaseUid == firebaseUserId }
+            )
+        }
+
         guard let pockets = try? modelContext.fetch(descriptor) else { return }
 
         let batch = db.batch()
@@ -227,78 +233,41 @@ class FirebaseSyncService {
 
         do {
             try await batch.commit()
-            print("Synced \(pockets.count) pockets")
+            print("✅ Synced \(pockets.count) pockets")
         } catch {
-            print("Pocket sync error: \(error)")
+            print("❌ Pocket sync error: \(error)")
         }
     }
 
+    // MARK: - Sync UserProfiles
     private func syncUserProfiles(firebaseUserId: String, modelContext: ModelContext) async {
-        let descriptor = FetchDescriptor<UserProfile>()
+        let descriptor = FetchDescriptor<UserProfile>(
+            predicate: #Predicate { $0.firebaseUid == firebaseUserId }
+        )
         guard let profiles = try? modelContext.fetch(descriptor) else { return }
 
-        let batch = db.batch()
-        let collectionRef = db.collection("users").document(firebaseUserId).collection("userProfiles")
-
         for profile in profiles {
-            let docRef = collectionRef.document(profile.id.uuidString)
-            let data = profile.toFirestoreData()
-            batch.setData(data, forDocument: docRef, merge: true)
-        }
-
-        do {
-            try await batch.commit()
-            print("Synced \(profiles.count) user profiles")
-        } catch {
-            print("UserProfile sync error: \(error)")
+            let docRef = db.collection("users").document(firebaseUserId)
+            do {
+                try await docRef.setData(profile.toFirestoreData(), merge: true)
+            } catch {
+                print("❌ UserProfile sync error: \(error)")
+            }
         }
     }
 
-    // MARK: - Create Sync Record
-    func createSyncRecord(entityType: String, entityId: UUID, action: String, modelContext: ModelContext) {
-        let record = SyncRecord(
-            entityType: entityType,
-            entityId: entityId,
-            action: action,
-            firebaseUserId: Auth.auth().currentUser?.uid
-        )
-        modelContext.insert(record)
+    // MARK: - Sync Single Record
+    private func syncRecord(_ record: SyncRecord, firebaseUserId: String, familyCode: String?, modelContext: ModelContext) async {
+        record.syncedToFirebase = true
         try? modelContext.save()
     }
 
-    // MARK: - ⭐ FETCH FAMILY DATA (for new member joining)
-    func fetchFamilyData(familyCode: String, modelContext: ModelContext) async {
-        do {
-            // Fetch transactions
-            let transactionsSnapshot = try await db.collection("families")
-                .document(familyCode).collection("transactions").getDocuments()
-            for doc in transactionsSnapshot.documents {
-                print("Fetched transaction: \(doc.documentID)")
-            }
-
-            // Fetch wallets
-            let walletsSnapshot = try await db.collection("families")
-                .document(familyCode).collection("wallets").getDocuments()
-            for doc in walletsSnapshot.documents {
-                print("Fetched wallet: \(doc.documentID)")
-            }
-
-            // Fetch categories
-            let categoriesSnapshot = try await db.collection("families")
-                .document(familyCode).collection("categories").getDocuments()
-            for doc in categoriesSnapshot.documents {
-                print("Fetched category: \(doc.documentID)")
-            }
-
-            // Fetch pockets
-            let pocketsSnapshot = try await db.collection("families")
-                .document(familyCode).collection("pockets").getDocuments()
-            for doc in pocketsSnapshot.documents {
-                print("Fetched pocket: \(doc.documentID)")
-            }
-
-        } catch {
-            print("❌ Fetch family data error: \(error)")
-        }
+    // MARK: - Helpers
+    private func getCurrentFamilyCode(modelContext: ModelContext) -> String? {
+        guard let user = Auth.auth().currentUser else { return nil }
+        let descriptor = FetchDescriptor<UserProfile>()
+        guard let profiles = try? modelContext.fetch(descriptor),
+              let profile = profiles.first(where: { $0.firebaseUid == user.uid }) else { return nil }
+        return profile.familyCode
     }
 }
