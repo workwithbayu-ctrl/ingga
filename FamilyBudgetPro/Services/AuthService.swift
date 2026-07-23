@@ -210,13 +210,21 @@ class AuthService: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
-        // ⭐ FIX: sebelumnya syncPendingRecords() (panggilan jaringan ke Firestore) dipanggil
-        // di sini dan DI-AWAIT sebelum melanjutkan. Kalau koneksi bermasalah (lihat log
-        // sebelumnya: permission denied, no network route), panggilan ini bisa menggantung
-        // lama, membuat SELURUH proses logout ikut macet menunggunya.
-        // Logout adalah perubahan status LOKAL — harus selalu berhasil instan, apapun
-        // kondisi jaringan. Data yang belum ter-sync tetap aman tersimpan lokal (LocalSyncRecord)
-        // dan akan otomatis disinkronkan nanti lewat auto-sync biasa saat online kembali.
+        // ⭐ SECURITY FIX: Clear all local data to prevent cross-user data leakage.
+        do {
+            try modelContext.delete(model: Transaction.self)
+            try modelContext.delete(model: Wallet.self)
+            try modelContext.delete(model: Category.self)
+            try modelContext.delete(model: Pocket.self)
+            try modelContext.delete(model: PocketTransaction.self)
+            try modelContext.delete(model: SyncRecord.self)
+            try modelContext.delete(model: User.self)
+            try modelContext.delete(model: UserProfile.self)
+            try modelContext.save()
+            print("🧹 Local data cleared successfully")
+        } catch {
+            print("❌ Error clearing local data: \(error)")
+        }
 
         if let user = Auth.auth().currentUser {
             let descriptor = FetchDescriptor<UserProfile>()
@@ -231,9 +239,6 @@ class AuthService: ObservableObject {
 
         GIDSignIn.sharedInstance.signOut()
 
-        // Auth.auth().signOut() bisa throw (mis. masalah keychain/jaringan).
-        // Kalau itu terjadi, JANGAN biarkan user terjebak di dalam app — status logout
-        // lokal (isAuthenticated, AuthStateManager) tetap harus di-set, apapun hasilnya.
         do {
             try Auth.auth().signOut()
         } catch {

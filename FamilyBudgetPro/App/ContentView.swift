@@ -2,6 +2,7 @@
 // Views/ContentView.swift
 
 import SwiftUI
+import FirebaseAuth
 
 // MARK: - Mini BP Logo (for tab bar)
 struct MiniBPLogo: View {

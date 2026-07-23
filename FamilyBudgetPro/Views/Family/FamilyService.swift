@@ -179,7 +179,43 @@ class FamilyService: ObservableObject {
 
             // Clear local data
             if let family = currentFamily {
+                let familyCode = family.familyCode ?? ""
+                
+                // 1. Delete Transactions
+                let transDescriptor = FetchDescriptor<Transaction>(predicate: #Predicate { $0.familyCode == familyCode })
+                if let transactions = try? modelContext.fetch(transDescriptor) {
+                    for transaction in transactions {
+                        modelContext.delete(transaction)
+                    }
+                }
+                
+                // 2. Delete Wallets
+                let walletDescriptor = FetchDescriptor<Wallet>(predicate: #Predicate { $0.familyCode == familyCode })
+                if let wallets = try? modelContext.fetch(walletDescriptor) {
+                    for wallet in wallets {
+                        modelContext.delete(wallet)
+                    }
+                }
+                
+                // 3. Delete Categories
+                let catDescriptor = FetchDescriptor<Category>(predicate: #Predicate { $0.familyCode == familyCode })
+                if let categories = try? modelContext.fetch(catDescriptor) {
+                    for category in categories {
+                        modelContext.delete(category)
+                    }
+                }
+                
+                // 4. Delete Pockets
+                let pocketDescriptor = FetchDescriptor<Pocket>(predicate: #Predicate { $0.familyCode == familyCode })
+                if let pockets = try? modelContext.fetch(pocketDescriptor) {
+                    for pocket in pockets {
+                        modelContext.delete(pocket)
+                    }
+                }
+
                 modelContext.delete(family)
+                try? modelContext.save()
+                print("🧹 Family data cleared successfully")
             }
 
             // Clear family code from profile

@@ -140,14 +140,17 @@ class DataService: ObservableObject {
     // MARK: - Fetch Wallets
     func fetchWallets() -> [Wallet] {
         guard let context = modelContext else { return [] }
-        let currentFamilyCode = getCurrentFamilyCode()
+        guard let currentFamilyCode = getCurrentFamilyCode() else {
+            print("❌ fetchWallets blocked: No family code")
+            return []
+        }
         let descriptor = FetchDescriptor<Wallet>(
             predicate: #Predicate<Wallet> { $0.familyCode == currentFamilyCode },
             sortBy: [SortDescriptor(\.name)]
         )
         do {
             let wallets = try context.fetch(descriptor)
-            print("💰 fetchWallets: \(wallets.count) wallets found (family: \(currentFamilyCode ?? "nil"))")
+            print("💰 fetchWallets: \(wallets.count) wallets found (family: \(currentFamilyCode))")
             for wallet in wallets {
                 let displayBalance = max(wallet.balance, 0)
                 print("   - \(wallet.name): \(displayBalance)")
@@ -162,14 +165,17 @@ class DataService: ObservableObject {
     // MARK: - Fetch Categories
     func fetchCategories() -> [Category] {
         guard let context = modelContext else { return [] }
-        let currentFamilyCode = getCurrentFamilyCode()
+        guard let currentFamilyCode = getCurrentFamilyCode() else {
+            print("❌ fetchCategories blocked: No family code")
+            return []
+        }
         let descriptor = FetchDescriptor<Category>(
             predicate: #Predicate<Category> { $0.familyCode == currentFamilyCode },
             sortBy: [SortDescriptor(\.name)]
         )
         do {
             let categories = try context.fetch(descriptor)
-            print("📋 Total categories in store (family: \(currentFamilyCode ?? "nil")): \(categories.count)")
+            print("📋 Total categories in store (family: \(currentFamilyCode)): \(categories.count)")
             return categories
         } catch {
             print("❌ Error fetching categories: \(error)")
@@ -200,7 +206,10 @@ class DataService: ObservableObject {
     // MARK: - Fetch Transactions
     func fetchTransactions() -> [Transaction] {
         guard let context = modelContext else { return [] }
-        let currentFamilyCode = getCurrentFamilyCode()
+        guard let currentFamilyCode = getCurrentFamilyCode() else {
+            print("❌ fetchTransactions blocked: No family code")
+            return []
+        }
         let descriptor = FetchDescriptor<Transaction>(
             predicate: #Predicate<Transaction> { $0.familyCode == currentFamilyCode },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
@@ -278,10 +287,14 @@ class DataService: ObservableObject {
     // MARK: - Add Income
     func addIncome(amount: Double, note: String, date: Date, category: Category, wallet: Wallet, user: User) {
         guard let context = modelContext else { return }
+        
+        guard let familyCode = getCurrentFamilyCode() else {
+            print("❌ BLOCKED: addIncome - No valid family code")
+            return
+        }
 
         print("💰 ADD INCOME: +\(amount) to \(wallet.name) (current: \(wallet.balance))")
 
-        let familyCode = getCurrentFamilyCode()
         let firebaseUid = getCurrentUserId()
 
         let transaction = Transaction(
@@ -317,6 +330,11 @@ class DataService: ObservableObject {
     // MARK: - Add Expense
     func addExpense(amount: Double, note: String, date: Date, category: Category, wallet: Wallet, user: User) {
         guard let context = modelContext else { return }
+        
+        guard let familyCode = getCurrentFamilyCode() else {
+            print("❌ BLOCKED: addExpense - No valid family code")
+            return
+        }
 
         print("💸 ADD EXPENSE: -\(amount) from \(wallet.name) (current: \(wallet.balance))")
 
@@ -325,7 +343,6 @@ class DataService: ObservableObject {
             return
         }
 
-        let familyCode = getCurrentFamilyCode()
         let firebaseUid = getCurrentUserId()
 
         let transaction = Transaction(
@@ -361,6 +378,11 @@ class DataService: ObservableObject {
     // MARK: - Add Transfer
     func addTransfer(amount: Double, note: String, date: Date, fromWallet: Wallet, toWallet: Wallet, user: User) {
         guard let context = modelContext else { return }
+        
+        guard let familyCode = getCurrentFamilyCode() else {
+            print("❌ BLOCKED: addTransfer - No valid family code")
+            return
+        }
 
         print("🔄 ADD TRANSFER: \(amount) from \(fromWallet.name)(\(fromWallet.balance)) → \(toWallet.name)(\(toWallet.balance))")
 
@@ -369,7 +391,6 @@ class DataService: ObservableObject {
             return
         }
 
-        let familyCode = getCurrentFamilyCode()
         let firebaseUid = getCurrentUserId()
 
         let transferOut = Transaction(
@@ -432,7 +453,31 @@ class DataService: ObservableObject {
 
         print("🗑️ DELETE TRANSACTION: \(transaction.type.rawValue) \(transaction.amount)")
 
-        if let wallet = transaction.wallet {
+        if transaction.isTransfer {
+            // ⭐ FIX: Handle transfer deletion - reverse both wallets and delete both transaction entities
+            if let sourceWallet = transaction.sourceWallet, let destWallet = transaction.destinationWallet {
+                sourceWallet.balance += transaction.amount
+                destWallet.balance -= transaction.amount
+                print("   ↩️ Reverse transfer: \(sourceWallet.name) +\(transaction.amount), \(destWallet.name) -\(transaction.amount)")
+                
+                // Sync updated wallets
+                createSyncRecord(entityType: "Wallet", entityId: sourceWallet.id, action: "updated")
+                createSyncRecord(entityType: "Wallet", entityId: destWallet.id, action: "updated")
+                syncWalletToFirebase(sourceWallet)
+                syncWalletToFirebase(destWallet)
+            }
+            
+            // Find and delete the counterpart transaction
+            let transId = transaction.id
+            let descriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate { $0.isTransfer == true && $0.id != transId && $0.date == transaction.date && $0.amount == transaction.amount }
+            )
+            if let counterpart = try? context.fetch(descriptor).first {
+                createSyncRecord(entityType: "Transaction", entityId: counterpart.id, action: "deleted")
+                context.delete(counterpart)
+                print("   ↩️ Counterpart transfer transaction deleted")
+            }
+        } else if let wallet = transaction.wallet {
             let oldBalance = wallet.balance
             if transaction.type == .income {
                 wallet.balance -= transaction.amount
@@ -440,8 +485,6 @@ class DataService: ObservableObject {
             } else if transaction.type == .expense {
                 wallet.balance += transaction.amount
                 print("   ↩️ Reverse expense: \(wallet.name) \(oldBalance) + \(transaction.amount) = \(wallet.balance)")
-            } else if transaction.type == .transfer {
-                print("   ⚠️ Transfer delete - manual balance adjustment may be needed")
             }
 
             if wallet.balance < 0 {
@@ -504,6 +547,14 @@ class DataService: ObservableObject {
 
     private func syncTransactionToFirebase(_ transaction: Transaction) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        // ⭐ SECURITY FIX: Verify permission and family code before syncing
+        guard let currentFamilyCode = getCurrentFamilyCode(),
+              transaction.familyCode == currentFamilyCode else {
+            print("❌ Sync BLOCKED: Permission denied (User not in this family or transaction family mismatch)")
+            return
+        }
+        
         let data: [String: Any] = [
             "amount": transaction.amount,
             "note": transaction.note,
@@ -528,6 +579,14 @@ class DataService: ObservableObject {
 
     private func syncWalletToFirebase(_ wallet: Wallet) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        // ⭐ SECURITY FIX: Verify permission and family code before syncing
+        guard let currentFamilyCode = getCurrentFamilyCode(),
+              wallet.familyCode == currentFamilyCode else {
+            print("❌ Sync BLOCKED: Permission denied (User not in this family or wallet family mismatch)")
+            return
+        }
+        
         let data: [String: Any] = [
             "name": wallet.name,
             "balance": wallet.balance,
